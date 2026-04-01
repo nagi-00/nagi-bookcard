@@ -1,1 +1,234 @@
-/* card.css — card component styles */
+/* src/styles/card.css */
+
+/* ── CSS 변수 (colorSystem.js가 동적으로 덮어씀) ── */
+:root {
+  --color-bg:       #F0EBE3;
+  --color-glass:    rgba(245,241,235,0.60);
+  --color-text:     #2C2825;
+  --color-text-sub: #8C8680;
+  --color-accent:   #8FAF8E;
+  --color-sub:      #CCDBC5;
+  --font-ko: 'Pretendard Variable', sans-serif;
+  --font-en: 'Inter', sans-serif;
+}
+
+/* ── 카드 씬 (내보내기 대상) ── */
+.card-scene {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--color-bg);
+  font-family: var(--font-ko);
+}
+
+.card-scene.bg-image {
+  background-size: cover;
+  background-position: center;
+}
+
+/* ── 레이어 1: 배경 그라디언트 오버레이 ── */
+.card-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 55% 15%, rgba(255,255,255,0.18) 0%, transparent 55%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── 레이어 2: 책 표지 전체 (폴더 뒤 = frosted) ── */
+.cover-back {
+  position: absolute;
+  z-index: 2;
+  overflow: hidden;
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.14);
+}
+.cover-back img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+
+/* ── 레이어 3: SVG 폴더 + 유리 ── */
+.folder-layer {
+  position: absolute;
+  z-index: 3;
+}
+
+.folder-glass {
+  position: absolute;
+  inset: 0;
+  background: var(--color-glass);
+  backdrop-filter: blur(24px) saturate(1.5) brightness(1.04);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.04);
+  border: 1px solid rgba(255,255,255,0.85);
+}
+
+/* 폴더 탭 */
+.folder-tab {
+  position: absolute;
+  top: 0; left: 20px;
+  height: 22px;
+  border-radius: 9px 9px 0 0;
+  background: var(--color-glass);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,0.85);
+  border-bottom: none;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  z-index: 4;
+}
+.folder-tab-label {
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--color-text-sub);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 80px;
+  font-family: var(--font-en);
+}
+
+/* 폴더 바디 */
+.folder-body {
+  position: absolute;
+  top: 20px; left: 0; right: 0; bottom: 0;
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+}
+
+/* 폴더 내부 콘텐츠 */
+.folder-content {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex; flex-direction: column;
+}
+
+.folder-arrow {
+  position: absolute;
+  top: 18px; right: 16px;
+  font-size: 14px; color: var(--color-text-sub);
+  opacity: 0.4; font-style: normal;
+  font-family: var(--font-en);
+}
+
+/* ── 레이어 4: 책 표지 상단 (폴더 앞 = 선명) ── */
+.cover-front {
+  position: absolute;
+  z-index: 5;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+}
+.cover-front img {
+  object-fit: cover; display: block;
+}
+
+/* ── 정보 영역 ── */
+.info-wrap {
+  display: flex; flex-direction: column;
+  height: 100%;
+}
+
+.date-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px;
+}
+.day-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-text-sub);
+  font-family: var(--font-en);
+}
+.date-pills {
+  display: flex; gap: 3px; align-items: center;
+}
+.date-pills .d {
+  font-size: 10px; color: var(--color-text-sub);
+  width: 20px; text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-en);
+  opacity: 0.6;
+}
+.date-pills .d.today {
+  background: var(--color-accent); color: #fff;
+  border-radius: 50%; height: 20px;
+  font-size: 9.5px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 1;
+}
+
+.book-title {
+  font-size: 20px; font-weight: 800;
+  color: var(--color-text); line-height: 1.15;
+  letter-spacing: -0.03em; margin-bottom: 3px;
+}
+.book-author {
+  font-size: 11px; color: var(--color-text-sub);
+  margin-bottom: 10px;
+}
+
+.star-row {
+  display: flex; gap: 3px; margin-bottom: 10px;
+}
+.star-row .star {
+  font-size: 13px; cursor: pointer;
+  color: var(--color-text-sub); opacity: 0.2;
+  transition: opacity 0.15s;
+}
+.star-row .star.on {
+  color: var(--color-accent); opacity: 1;
+}
+
+.quote-block {
+  font-size: 11px; font-style: italic;
+  color: var(--color-text-sub); line-height: 1.7;
+  border-left: 2px solid var(--color-accent);
+  padding-left: 10px; opacity: 0.85;
+  flex: 1; overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  margin-bottom: auto;
+}
+
+.folder-bottom {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 8px; margin-top: 8px;
+}
+.brand-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: lowercase;
+  color: var(--color-text-sub); opacity: 0.5;
+  font-family: var(--font-en);
+}
+.bottom-right {
+  display: flex; align-items: center; gap: 8px;
+}
+.time-label {
+  font-size: 9px; color: var(--color-text-sub);
+  opacity: 0.45; letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-en);
+}
+.barcode {
+  display: flex; align-items: flex-end; gap: 2px; height: 14px;
+}
+.barcode-bar {
+  background: var(--color-text); opacity: 0.18;
+  width: 2px; border-radius: 1px;
+}
+
+/* ── 다크 테마 오버라이드 ── */
+[data-theme="dark"] .folder-glass,
+[data-theme="dark"] .folder-tab {
+  border-color: rgba(255,255,255,0.12);
+}
+[data-theme="dark"] .folder-bottom {
+  border-top-color: rgba(255,255,255,0.07);
+}
+[data-theme="dark"] .barcode-bar { opacity: 0.2; }
+
+/* ── 폰트 프리셋 ── */
+[data-font="modern"]   { --font-ko: 'Pretendard Variable', sans-serif; }
+[data-font="literary"] { --font-ko: 'Noto Serif KR', serif; }
+[data-font="soft"]     { --font-ko: 'Gowun Dodum', sans-serif; }
