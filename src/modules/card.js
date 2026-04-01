@@ -13,6 +13,14 @@ const SIZES = {
 // landscape: 1:1, 4:3, 16:9 — 폴더 우측 70%, 표지 좌측에서 꽂힘
 const PORTRAIT_RATIOS = new Set(['9:16', '3:4'])
 
+function escapeHTML(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function isPortrait(ratio) {
   return PORTRAIT_RATIOS.has(ratio)
 }
@@ -65,7 +73,8 @@ function buildStarsHTML(rating) {
 }
 
 function buildFolderContentHTML() {
-  const { title, author, date, quote, quoteEnabled, rating, ratingEnabled } = state
+  const { title, author, quote, quoteEnabled, rating, ratingEnabled } = state
+  const date = state.date instanceof Date ? state.date : new Date(state.date)
   const dateTag = formatDateTag(date)
   const timeStr = formatTime(date)
 
@@ -74,10 +83,10 @@ function buildFolderContentHTML() {
     <div class="folder-content-inner">
       <div class="info-wrap">
         ${buildDateRowHTML(date)}
-        <div class="book-title">${title || '제목을 입력하세요'}</div>
-        <div class="book-author">${author || '저자'}</div>
+        <div class="book-title">${escapeHTML(title) || '제목을 입력하세요'}</div>
+        <div class="book-author">${escapeHTML(author) || '저자'}</div>
         ${ratingEnabled ? `<div class="star-row">${buildStarsHTML(rating)}</div>` : ''}
-        ${quoteEnabled && quote ? `<div class="quote-block">"${quote}"</div>` : ''}
+        ${quoteEnabled && quote ? `<div class="quote-block">"${escapeHTML(quote)}"</div>` : ''}
         <div class="folder-bottom">
           <span class="brand-label">nagi</span>
           <div class="bottom-right">
@@ -113,7 +122,7 @@ function applyPortraitLayout(scene, W, H) {
       top:${coverMid}px; left:0; right:0;
       height:${H - coverMid}px;">
       <div class="folder-tab" style="width:${Math.round(W*0.34)}px;">
-        <span class="folder-tab-label">${state.title || 'bookcard'}</span>
+        <span class="folder-tab-label">${escapeHTML(state.title) || 'bookcard'}</span>
       </div>
       <div class="folder-body">
         <div class="folder-glass"></div>
