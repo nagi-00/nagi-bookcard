@@ -6,6 +6,10 @@ import { searchBooks } from './modules/search.js'
 import { deriveColors, applyCssVars, pickColorWithEyeDropper } from './modules/colorSystem.js'
 import { exportToPng, exportToClipboard } from './modules/export.js'
 
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
 // ── 패널 HTML 주입 ──
 document.getElementById('panel').innerHTML = `
   <div class="panel-section">
@@ -152,10 +156,10 @@ async function runSearch(q) {
   }
   results.innerHTML = books.map((b, i) => `
     <div class="search-result-item" data-idx="${i}">
-      <img src="${b.cover||''}" onerror="this.style.display='none'">
+      <img src="${esc(b.cover||'')}" onerror="this.style.display='none'">
       <div>
-        <div class="search-result-title">${b.title}</div>
-        <div class="search-result-author">${b.author}</div>
+        <div class="search-result-title">${esc(b.title)}</div>
+        <div class="search-result-author">${esc(b.author)}</div>
       </div>
     </div>`).join('')
   results.querySelectorAll('.search-result-item').forEach(el => {

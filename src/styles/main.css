@@ -117,12 +117,6 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   border: 2px solid transparent; cursor: pointer; transition: border 0.15s;
 }
 .bg-swatch.active { border-color: #8FAF8E; }
-.bg-custom-btn {
-  width: 26px; height: 26px; border-radius: 50%;
-  border: 2px dashed #D6D0C8; background: none;
-  cursor: pointer; font-size: 13px; color: #8C8680;
-  display: flex; align-items: center; justify-content: center;
-}
 .bg-image-btn {
   padding: 4px 10px; border-radius: 8px;
   border: 1.5px dashed #D6D0C8; background: none;
