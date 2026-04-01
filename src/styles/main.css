@@ -185,3 +185,52 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   #app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
   #preview { min-height: 400px; }
 }
+
+/* ── 온보딩 모달 ── */
+#onboarding-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(44, 40, 37, 0.55);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+#onboarding-overlay.hidden { display: none; }
+#onboarding-modal {
+  background: #F8F6F2;
+  border-radius: 20px;
+  padding: 36px 32px 28px;
+  width: 360px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+}
+#onboarding-modal .modal-title {
+  font-size: 18px; font-weight: 700;
+  color: #2C2825; margin-bottom: 6px;
+  font-family: 'Inter', sans-serif;
+}
+#onboarding-modal .modal-desc {
+  font-size: 12px; color: #8C8680; line-height: 1.6;
+  margin-bottom: 20px;
+}
+#onboarding-modal .modal-desc a {
+  color: #8FAF8E; text-decoration: none;
+}
+#onboarding-modal .modal-desc a:hover { text-decoration: underline; }
+#ttb-key-input {
+  width: 100%; padding: 10px 14px;
+  border: 1px solid #D6D0C8; border-radius: 10px;
+  background: #F0EBE3; font-size: 13px; color: #2C2825;
+  outline: none; font-family: inherit; margin-bottom: 12px;
+}
+#ttb-key-input:focus { border-color: #8FAF8E; }
+#ttb-key-save {
+  width: 100%; padding: 11px; border-radius: 12px; border: none;
+  background: #8FAF8E; color: #fff;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: inherit;
+}
+#ttb-key-save:hover { opacity: 0.85; }
+.key-setting-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; color: #B8B2AA; padding: 0;
+  font-family: inherit; text-decoration: underline;
+}
+.key-setting-btn:hover { color: #8C8680; }

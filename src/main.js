@@ -10,10 +10,61 @@ function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
 }
 
+// ── TTB 키 관리 ──
+const TTB_KEY_STORAGE = 'nagi_ttb_key'
+
+function getTtbKey() {
+  return localStorage.getItem(TTB_KEY_STORAGE) || ''
+}
+
+function saveTtbKey(key) {
+  localStorage.setItem(TTB_KEY_STORAGE, key.trim())
+}
+
+// ── 온보딩 모달 ──
+const overlayHTML = `
+  <div id="onboarding-overlay">
+    <div id="onboarding-modal">
+      <div class="modal-title">알라딘 TTB 키 입력</div>
+      <div class="modal-desc">
+        책 검색 기능을 사용하려면 알라딘 TTB API 키가 필요해요.<br>
+        키는 <a href="https://www.aladin.co.kr/ttb/wblog_list.aspx" target="_blank" rel="noopener">알라딘 파트너스</a>에서 발급받을 수 있어요.
+      </div>
+      <input id="ttb-key-input" type="text" placeholder="TTB 키를 입력하세요">
+      <button id="ttb-key-save">저장하고 시작하기</button>
+    </div>
+  </div>`
+
+document.body.insertAdjacentHTML('beforeend', overlayHTML)
+
+function showOnboarding() {
+  document.getElementById('onboarding-overlay').classList.remove('hidden')
+}
+
+function hideOnboarding() {
+  document.getElementById('onboarding-overlay').classList.add('hidden')
+}
+
+document.getElementById('ttb-key-save').addEventListener('click', () => {
+  const key = document.getElementById('ttb-key-input').value.trim()
+  if (!key) return
+  saveTtbKey(key)
+  hideOnboarding()
+})
+
+document.getElementById('ttb-key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('ttb-key-save').click()
+})
+
+if (!getTtbKey()) showOnboarding()
+
 // ── 패널 HTML 주입 ──
 document.getElementById('panel').innerHTML = `
   <div class="panel-section">
-    <div class="panel-section-title">책 검색</div>
+    <div class="panel-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      책 검색
+      <button class="key-setting-btn" id="change-key-btn">TTB 키 변경</button>
+    </div>
     <div id="search-wrap">
       <input id="search-input" type="text" placeholder="책 제목 검색...">
       <button id="search-btn">🔍</button>
@@ -149,7 +200,7 @@ async function runSearch(q) {
   const results = document.getElementById('search-results')
   results.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:#8C8680">검색 중...</div>'
   results.classList.add('open')
-  const books = await searchBooks(q)
+  const books = await searchBooks(q, getTtbKey())
   if (!books.length) {
     results.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:#8C8680">결과 없음</div>'
     return
@@ -173,6 +224,12 @@ async function runSearch(q) {
     })
   })
 }
+
+// TTB 키 변경
+document.getElementById('change-key-btn').addEventListener('click', () => {
+  document.getElementById('ttb-key-input').value = getTtbKey()
+  showOnboarding()
+})
 
 // 닫기
 document.addEventListener('click', e => {
