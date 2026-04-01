@@ -132,7 +132,9 @@ document.getElementById('panel').innerHTML = `
       <option value="modern">Modern — Pretendard</option>
       <option value="literary">Literary — Noto Serif KR</option>
       <option value="soft">Soft — Gowun Dodum</option>
+      <option value="custom">직접 입력 (로컬 폰트)</option>
     </select>
+    <input id="custom-font-input" class="text-input" type="text" placeholder="폰트 이름 (예: 나눔명조)" style="display:none">
   </div>
 
   <div class="panel-section">
@@ -164,11 +166,16 @@ setState({ date: today })
 // ── 카드 렌더링 + 스케일 ──
 function update() {
   const colors = deriveColors(state.accentColor, state.theme)
-  setState({ colors })
   applyCssVars(colors)
-
   renderCard(previewInner)
   scalePreview()
+  syncStarUI()
+}
+
+function syncStarUI() {
+  document.querySelectorAll('#star-input .star-btn').forEach((b, i) => {
+    b.classList.toggle('on', i < state.rating)
+  })
 }
 
 function scalePreview() {
@@ -274,11 +281,7 @@ document.getElementById('rating-toggle').addEventListener('click', function() {
 // 별점 클릭
 document.getElementById('star-input').addEventListener('click', e => {
   const btn = e.target.closest('.star-btn'); if (!btn) return
-  const val = +btn.dataset.val
-  setState({ rating: val })
-  document.querySelectorAll('#star-input .star-btn').forEach((b, i) => {
-    b.classList.toggle('on', i < val)
-  })
+  setState({ rating: +btn.dataset.val })
 })
 
 // 비율
@@ -329,7 +332,18 @@ document.getElementById('eyedropper-btn').addEventListener('click', async () => 
 
 // 폰트
 document.getElementById('font-select').addEventListener('change', e => {
-  setState({ font: e.target.value })
+  const val = e.target.value
+  const customInput = document.getElementById('custom-font-input')
+  if (val === 'custom') {
+    customInput.style.display = 'block'
+    customInput.focus()
+  } else {
+    customInput.style.display = 'none'
+    setState({ font: val, customFont: '' })
+  }
+})
+document.getElementById('custom-font-input').addEventListener('input', e => {
+  setState({ customFont: e.target.value.trim() })
 })
 
 // 테마

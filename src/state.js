@@ -16,7 +16,8 @@ export const state = {
   // 비주얼
   ratio: '9:16',      // '9:16' | '3:4' | '1:1' | '4:3' | '16:9'
   theme: 'light',     // 'light' | 'dark'
-  font: 'modern',     // 'modern' | 'literary' | 'soft'
+  font: 'modern',     // 'modern' | 'literary' | 'soft' | 'custom'
+  customFont: '',     // 사용자 로컬 폰트 이름
 
   // 배경
   bgPreset: 'beige',  // 'white' | 'beige' | 'gray' | 'black' | 'custom' | 'image'

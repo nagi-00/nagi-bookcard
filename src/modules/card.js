@@ -200,6 +200,13 @@ export function renderCard(container) {
   scene.style.width = W + 'px'
   scene.style.height = H + 'px'
 
+  // 커스텀 로컬 폰트
+  if (state.font === 'custom' && state.customFont) {
+    scene.style.setProperty('--font-ko', `'${state.customFont}', sans-serif`)
+  } else {
+    scene.style.removeProperty('--font-ko')
+  }
+
   // 배경
   if (state.bgPreset === 'image' && state.bgImage) {
     scene.classList.add('bg-image')
