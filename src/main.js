@@ -107,7 +107,7 @@ const previewInner = document.getElementById('preview-inner')
 
 // ── 초기 날짜 설정 ──
 const today = new Date()
-document.getElementById('date-input').value = today.toISOString().split('T')[0]
+document.getElementById('date-input').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 setState({ date: today })
 
 // ── 카드 렌더링 + 스케일 ──
