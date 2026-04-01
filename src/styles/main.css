@@ -173,7 +173,7 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 /* ── 미리보기 패널 ── */
 #preview {
   display: flex; align-items: center; justify-content: center;
-  background: #EEEAE3; padding: 40px;
+  padding: 40px;
 }
 #preview-inner {
   transform-origin: center center;

@@ -170,6 +170,20 @@ function update() {
   renderCard(previewInner)
   scalePreview()
   syncStarUI()
+  syncPreviewBg()
+}
+
+function syncPreviewBg() {
+  const preview = document.getElementById('preview')
+  if (state.bgPreset === 'image' && state.bgImage) {
+    preview.style.backgroundImage = `url(${state.bgImage})`
+    preview.style.backgroundSize = 'cover'
+    preview.style.backgroundPosition = 'center'
+    preview.style.backgroundColor = ''
+  } else {
+    preview.style.backgroundImage = ''
+    preview.style.backgroundColor = state.bgColor
+  }
 }
 
 function syncStarUI() {
