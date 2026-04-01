@@ -13,13 +13,19 @@ describe('colorSystem', () => {
   it('hslToHex round-trips', () => {
     const hex = hslToHex(119, 18, 62)
     expect(hex).toMatch(/^#[0-9a-f]{6}$/i)
+    const [h, s, l] = hexToHsl(hex)
+    expect(h).toBeCloseTo(119, -1)
+    expect(s).toBeCloseTo(18, 0)
+    expect(l).toBeCloseTo(62, 0)
   })
 
   it('deriveColors light theme produces bright bg, dark text', () => {
     const colors = deriveColors('#8FAF8E', 'light')
-    expect(colors.bg).toBeDefined()
-    expect(colors.text).toBeDefined()
     expect(colors.glass).toMatch(/rgba/)
+    const [, , bgL] = hexToHsl(colors.bg)
+    expect(bgL).toBeGreaterThan(80)
+    const [, , textL] = hexToHsl(colors.text)
+    expect(textL).toBeLessThan(30)
   })
 
   it('deriveColors dark theme produces dark bg, light text', () => {

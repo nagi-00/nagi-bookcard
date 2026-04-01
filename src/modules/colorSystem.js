@@ -1,6 +1,7 @@
 // src/modules/colorSystem.js
 
 export function hexToHsl(hex) {
+  hex = hex.toLowerCase()
   const r = parseInt(hex.slice(1, 3), 16) / 255
   const g = parseInt(hex.slice(3, 5), 16) / 255
   const b = parseInt(hex.slice(5, 7), 16) / 255
@@ -64,7 +65,11 @@ export function applyCssVars(colors) {
 
 export async function pickColorWithEyeDropper() {
   if (!window.EyeDropper) return null
-  const eyeDropper = new EyeDropper()
-  const result = await eyeDropper.open()
-  return result.sRGBHex
+  try {
+    const eyeDropper = new EyeDropper()
+    const result = await eyeDropper.open()
+    return result.sRGBHex
+  } catch {
+    return null
+  }
 }
