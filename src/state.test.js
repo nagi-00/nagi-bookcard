@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { state, setState, subscribe } from './state.js'
 
 describe('state', () => {
+  beforeEach(() => {
+    setState({ title: '', author: '' })
+  })
+
   it('initial state has required fields', () => {
     expect(state.title).toBe('')
     expect(state.ratio).toBe('9:16')
