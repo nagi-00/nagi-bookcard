@@ -27,6 +27,7 @@ export const state = {
   // 책 정보 추가
   publisher: '',
   pages: '',
+  description: '',  // TTB 줄거리 (synopsis 버튼용)
 
   // 도서 표지 목록 { id, src, x, y, scale }
   books: [],

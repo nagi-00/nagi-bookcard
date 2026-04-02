@@ -70,6 +70,14 @@ body {
 }
 .text-input:focus { border-color: #8FAF8E; }
 textarea.text-input { resize: vertical; min-height: 72px; }
+.synopsis-btn {
+  padding: 5px 12px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; background: none;
+  font-size: 10px; font-weight: 600; color: #8C8680;
+  cursor: pointer; font-family: inherit; align-self: flex-start;
+  letter-spacing: 0.06em; transition: all 0.15s;
+}
+.synopsis-btn:hover { border-color: #8FAF8E; color: #8FAF8E; }
 
 /* 토글 행 */
 .toggle-row {

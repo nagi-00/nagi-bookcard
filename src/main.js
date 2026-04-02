@@ -76,6 +76,7 @@ document.getElementById('panel').innerHTML = `
       <button class="toggle on" id="quote-toggle"><div class="toggle-knob"></div></button>
     </div>
     <textarea id="quote-input" class="text-input" placeholder="ɴᴏᴛᴇs & ǫᴜᴏᴛᴇs"></textarea>
+    <button id="synopsis-btn" class="synopsis-btn">ɢᴇᴛ sʏɴᴏᴘsɪs</button>
     <div class="toggle-row">
       <label>sᴛᴀʀ</label>
       <button class="toggle on" id="rating-toggle"><div class="toggle-knob"></div></button>
@@ -244,9 +245,15 @@ async function runSearch(q) {
   results.querySelectorAll('.search-result-item').forEach(el => {
     el.addEventListener('click', () => {
       const b = books[+el.dataset.idx]
-      setState({ title: b.title, author: b.author })
+      setState({
+        title: b.title,
+        author: b.author,
+        publisher: b.publisher || '',
+        description: b.description || '',
+      })
       document.getElementById('title-input').value = b.title
       document.getElementById('author-input').value = b.author
+      if (b.publisher) document.getElementById('publisher-input').value = b.publisher
       if (b.cover) addBook(b.cover)
       results.classList.remove('open')
       document.getElementById('search-input').value = ''
@@ -290,6 +297,13 @@ document.getElementById('cover-file').addEventListener('change', e => {
     reader.readAsDataURL(file)
   })
   e.target.value = ''  // 동일 파일 재선택 허용
+})
+
+// synopsis 불러오기
+document.getElementById('synopsis-btn').addEventListener('click', () => {
+  if (!state.description) return
+  document.getElementById('quote-input').value = state.description
+  setState({ quote: state.description })
 })
 
 // 감상 토글

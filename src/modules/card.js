@@ -14,7 +14,7 @@ const FOLDER_MARGIN = 24   // card edge padding
 const BODY_OFFSET   = 26   // folder-body.top in CSS — 2px overlap with 28px tab hides junction
 
 export function resetCoverOffset() {
-  state.books.forEach(b => { b.x = 0; b.y = 0 })
+  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0 })
 }
 
 function escapeHTML(str) {
@@ -43,11 +43,6 @@ function formatTime(date) {
 
 function formatDateTag(date) {
   return `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}`
-}
-
-function buildBarcodeHTML() {
-  const bars = [2,1,1,2,1,1,3,1,2,1,1,2,1,3,1,1,2,1,1,1,2,1,2,1,1,3,1,2,1,1]
-  return bars.map(w => `<div class="barcode-bar" style="width:${w}px;"></div>`).join('')
 }
 
 function buildDateRowHTML(date) {
@@ -92,7 +87,6 @@ function buildFolderContentHTML() {
           <div class="bottom-right">
             ${pubMeta ? `<span class="pub-label">${pubMeta}</span>` : ''}
             <span class="time-label">${timeStr} · ${dateTag}</span>
-            <div class="barcode">${buildBarcodeHTML()}</div>
           </div>
         </div>
       </div>
@@ -136,14 +130,17 @@ function buildBooksHTML(W, H, layout, folderBodyTop, folderBodyLeft) {
       frontExtra = `width:${frontW}px;height:${bH}px;border-radius:6px 0 0 6px;`
     }
 
+    const rot = book.rotation || 0
+    const rotStyle = rot !== 0 ? `;transform-origin:center center;transform:rotate(${rot}deg)` : ''
+
     return `
       <div class="book-back" data-id="${book.id}"
         data-base-cx="${baseCX}" data-base-cy="${baseCY}"
         data-base-w="${baseW}" data-base-h="${baseH}"
         data-bw="${bW}" data-bh="${bH}"
-        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:0 16px 48px rgba(0,0,0,0.28),0 4px 12px rgba(0,0,0,0.14);">${imgBack}</div>
+        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:0 16px 48px rgba(0,0,0,0.28),0 4px 12px rgba(0,0,0,0.14)${rotStyle};">${imgBack}</div>
       <div class="book-front" data-id="${book.id}"
-        style="position:absolute;z-index:5;top:${bY}px;left:${bX}px;overflow:hidden;${frontExtra}">${imgFront}</div>`
+        style="position:absolute;z-index:5;top:${bY}px;left:${bX}px;overflow:hidden;${frontExtra}${rotStyle}">${imgFront}</div>`
   }).join('')
 }
 
@@ -152,15 +149,20 @@ function applyPortraitLayout(scene, W, H) {
   const baseW = Math.round(W * 0.30)
   const baseH = Math.round(baseW * 1.42)
 
-  const folderBodyTop  = Math.round(H * 0.52)
+  // 3:4 비율은 folderBodyTop을 낮게 잡아 폴더 내부 공간 확보
+  const is3x4 = state.ratio === '3:4'
+  const folderBodyTop  = Math.round(H * (is3x4 ? 0.47 : 0.52))
   const folderLayerTop = folderBodyTop - BODY_OFFSET
   const folderLayerH   = H - folderLayerTop - FOLDER_MARGIN
   const folderLayerW   = W - FOLDER_MARGIN * 2
-  const tabW           = Math.round(folderLayerW * 0.54)
-  const topPad         = Math.round(baseH * 0.48 + 18)
+  const tabW           = Math.round(folderLayerW * 0.41)
+  const topPad         = Math.round(baseH * (is3x4 ? 0.45 : 0.48) + (is3x4 ? 12 : 18))
 
-  scene.dataset.layout       = 'portrait'
+  scene.dataset.layout        = 'portrait'
   scene.dataset.folderBodyTop = folderBodyTop
+  scene.dataset.folderLayerW  = folderLayerW
+  scene.dataset.W = W
+  scene.dataset.H = H
 
   scene.innerHTML = `
     <div class="card-bg-overlay"></div>
@@ -188,6 +190,8 @@ function applyLandscapeLayout(scene, W, H) {
 
   scene.dataset.layout        = 'landscape'
   scene.dataset.folderBodyLeft = folderBodyLeft
+  scene.dataset.W = W
+  scene.dataset.H = H
 
   scene.innerHTML = `
     <div class="card-bg-overlay"></div>
@@ -205,7 +209,7 @@ function applyLandscapeLayout(scene, W, H) {
     </div>`
 }
 
-// ── Drag + Zoom (per book) ──
+// ── Drag + Rotate + Zoom (per book) ──
 export function initCoverDrag(scene) {
   if (!scene) return
   const layout = scene.dataset.layout
@@ -213,6 +217,8 @@ export function initCoverDrag(scene) {
 
   const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
   const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
+  const W = +scene.dataset.W || scene.offsetWidth
+  const H = +scene.dataset.H || scene.offsetHeight
 
   function getScale() {
     const rect = scene.getBoundingClientRect()
@@ -233,50 +239,147 @@ export function initCoverDrag(scene) {
     const baseW  = +backEl.dataset.baseW
     const baseH  = +backEl.dataset.baseH
 
-    let dragStart = null
+    let dragStart   = null
+    let rotating    = false
+    let lastTouches = null
 
-    function onDown(e) {
-      e.preventDefault()
-      e.stopPropagation()
-      const p = pointerPos(e)
-      dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grabbing'))
-      document.addEventListener('mousemove', onMove)
-      document.addEventListener('mouseup', onUp)
-      document.addEventListener('touchmove', onMove, { passive: false })
-      document.addEventListener('touchend', onUp)
-    }
+    function applyTransform() {
+      const bW = +backEl.dataset.bw
+      const bH = +backEl.dataset.bh
+      const bX = Math.round(baseCX + book.x - bW / 2)
+      const bY = Math.round(baseCY + book.y - bH / 2)
+      const rot = book.rotation || 0
+      const rotStyle = rot !== 0 ? `rotate(${rot}deg)` : ''
 
-    function onMove(e) {
-      if (!dragStart) return
-      e.preventDefault()
-      const p     = pointerPos(e)
-      const scale = getScale()
-      const bW    = +backEl.dataset.bw
-      const bH    = +backEl.dataset.bh
+      backEl.style.top       = bY + 'px'
+      backEl.style.left      = bX + 'px'
+      backEl.style.transform = rotStyle
 
-      if (layout === 'portrait') {
-        book.y = dragStart.oy + (p.y - dragStart.py) / scale
-        const bY     = Math.round(baseCY + book.y - bH / 2)
-        const frontH = Math.max(0, Math.min(bH, folderBodyTop - bY))
-        backEl.style.top = bY + 'px'
-        if (frontEl) { frontEl.style.top = bY + 'px'; frontEl.style.height = frontH + 'px' }
-      } else {
-        book.x = dragStart.ox + (p.x - dragStart.px) / scale
-        const bX     = Math.round(baseCX + book.x - bW / 2)
-        const frontW = Math.max(0, Math.min(bW, folderBodyLeft - bX))
-        backEl.style.left = bX + 'px'
-        if (frontEl) { frontEl.style.left = bX + 'px'; frontEl.style.width = frontW + 'px' }
+      if (frontEl) {
+        frontEl.style.top       = bY + 'px'
+        frontEl.style.left      = bX + 'px'
+        frontEl.style.transform = rotStyle
+        if (layout === 'portrait') {
+          frontEl.style.width  = bW + 'px'
+          frontEl.style.height = Math.max(0, Math.min(bH, folderBodyTop - bY)) + 'px'
+        } else {
+          frontEl.style.width  = Math.max(0, Math.min(bW, folderBodyLeft - bX)) + 'px'
+          frontEl.style.height = bH + 'px'
+        }
       }
     }
 
-    function onUp() {
-      dragStart = null
+    function updateImgSize(newBW, newBH) {
+      backEl.dataset.bw = newBW; backEl.dataset.bh = newBH
+      const bi = backEl.querySelector('img')
+      if (bi) { bi.style.width = newBW + 'px'; bi.style.height = newBH + 'px' }
+      const fi = frontEl?.querySelector('img')
+      if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
+    }
+
+    function onDown(e) {
+      // Two-finger touch: handled in onMove
+      if (e.touches && e.touches.length >= 2) {
+        lastTouches = Array.from(e.touches)
+        dragStart = null
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+
+      if (e.button === 2) {
+        // Right-click: rotate mode
+        rotating = true
+        const bW = +backEl.dataset.bw, bH = +backEl.dataset.bh
+        const bX = Math.round(baseCX + book.x - bW / 2)
+        const bY = Math.round(baseCY + book.y - bH / 2)
+        const sr = scene.getBoundingClientRect()
+        const s  = getScale()
+        const cx = sr.left + (bX + bW / 2) * s
+        const cy = sr.top  + (bY + bH / 2) * s
+        dragStart = {
+          cx, cy,
+          startRot:   book.rotation || 0,
+          startAngle: Math.atan2(e.clientY - cy, e.clientX - cx),
+        }
+      } else {
+        rotating = false
+        const p = pointerPos(e)
+        dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
+      }
+
+      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = rotating ? 'crosshair' : 'grabbing'))
+      document.addEventListener('mousemove',  onMove)
+      document.addEventListener('mouseup',    onUp)
+      document.addEventListener('touchmove',  onMove, { passive: false })
+      document.addEventListener('touchend',   onUp)
+    }
+
+    function onMove(e) {
+      e.preventDefault()
+      const s = getScale()
+
+      // Two-finger: pinch-scale + rotate
+      if (e.touches && e.touches.length >= 2 && lastTouches && lastTouches.length >= 2) {
+        const t0 = e.touches[0], t1 = e.touches[1]
+        const l0 = lastTouches[0], l1 = lastTouches[1]
+        const newDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY)
+        const oldDist = Math.hypot(l1.clientX - l0.clientX, l1.clientY - l0.clientY)
+        const newAng  = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX)
+        const oldAng  = Math.atan2(l1.clientY - l0.clientY, l1.clientX - l0.clientX)
+        if (oldDist > 1) {
+          book.scale = Math.max(0.3, Math.min(4, book.scale * (newDist / oldDist)))
+          updateImgSize(Math.round(baseW * book.scale), Math.round(baseH * book.scale))
+        }
+        book.rotation = (book.rotation || 0) + (newAng - oldAng) * 180 / Math.PI
+        lastTouches = Array.from(e.touches)
+        applyTransform()
+        return
+      }
+
+      if (!dragStart) return
+
+      if (rotating) {
+        const angle = Math.atan2(e.clientY - dragStart.cy, e.clientX - dragStart.cx)
+        book.rotation = dragStart.startRot + (angle - dragStart.startAngle) * 180 / Math.PI
+        applyTransform()
+        return
+      }
+
+      const p  = pointerPos(e)
+      const bW = +backEl.dataset.bw
+      const bH = +backEl.dataset.bh
+      const rawX = dragStart.ox + (p.x - dragStart.px) / s
+      const rawY = dragStart.oy + (p.y - dragStart.py) / s
+
+      if (layout === 'portrait') {
+        // X: 폴더 가로 범위 내로 클램핑 (도서가 폴더 옆으로 빠져나가지 않도록)
+        const minX = FOLDER_MARGIN - baseCX + bW / 2
+        const maxX = (W - FOLDER_MARGIN) - baseCX - bW / 2
+        book.x = minX < maxX ? Math.max(minX, Math.min(maxX, rawX)) : rawX
+        book.y = rawY
+      } else {
+        // Y: 폴더 세로 범위 내로 클램핑
+        const minY = FOLDER_MARGIN - baseCY + bH / 2
+        const maxY = (H - FOLDER_MARGIN) - baseCY - bH / 2
+        book.y = minY < maxY ? Math.max(minY, Math.min(maxY, rawY)) : rawY
+        book.x = rawX
+      }
+
+      applyTransform()
+    }
+
+    function onUp(e) {
+      if (e?.type === 'touchend' && (e.touches?.length ?? 0) >= 1) {
+        lastTouches = Array.from(e.touches)
+        return
+      }
+      dragStart = null; rotating = false; lastTouches = null
       ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grab'))
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      document.removeEventListener('touchmove', onMove)
-      document.removeEventListener('touchend', onUp)
+      document.removeEventListener('mousemove',  onMove)
+      document.removeEventListener('mouseup',    onUp)
+      document.removeEventListener('touchmove',  onMove)
+      document.removeEventListener('touchend',   onUp)
     }
 
     function onWheel(e) {
@@ -285,42 +388,17 @@ export function initCoverDrag(scene) {
       const prev = book.scale
       book.scale = Math.max(0.3, Math.min(4, book.scale - e.deltaY * 0.001))
       if (Math.abs(book.scale - prev) < 0.0005) return
-
-      const newBW = Math.round(baseW * book.scale)
-      const newBH = Math.round(baseH * book.scale)
-      const bX    = Math.round(baseCX + book.x - newBW / 2)
-      const bY    = Math.round(baseCY + book.y - newBH / 2)
-
-      backEl.style.cssText = backEl.style.cssText
-        .replace(/top:[^;]+/, `top:${bY}px`)
-        .replace(/left:[^;]+/, `left:${bX}px`)
-        .replace(/width:[^;]+/, `width:${newBW}px`)
-        .replace(/height:[^;]+/, `height:${newBH}px`)
-      backEl.dataset.bw = newBW; backEl.dataset.bh = newBH
-      const bi = backEl.querySelector('img')
-      if (bi) { bi.style.width = newBW + 'px'; bi.style.height = newBH + 'px' }
-
-      if (frontEl) {
-        frontEl.style.top  = bY + 'px'
-        frontEl.style.left = bX + 'px'
-        const fi = frontEl.querySelector('img')
-        if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
-        if (layout === 'portrait') {
-          frontEl.style.width  = newBW + 'px'
-          frontEl.style.height = Math.max(0, Math.min(newBH, folderBodyTop - bY)) + 'px'
-        } else {
-          frontEl.style.width  = Math.max(0, Math.min(newBW, folderBodyLeft - bX)) + 'px'
-          frontEl.style.height = newBH + 'px'
-        }
-      }
+      updateImgSize(Math.round(baseW * book.scale), Math.round(baseH * book.scale))
+      applyTransform()
     }
 
     ;[backEl, frontEl].forEach(el => {
       if (!el) return
       el.style.cursor = 'grab'
-      el.addEventListener('mousedown',  onDown)
-      el.addEventListener('touchstart', onDown, { passive: false })
-      el.addEventListener('wheel',      onWheel, { passive: false })
+      el.addEventListener('contextmenu', e => e.preventDefault())
+      el.addEventListener('mousedown',   onDown)
+      el.addEventListener('touchstart',  onDown, { passive: false })
+      el.addEventListener('wheel',       onWheel, { passive: false })
     })
   })
 }
