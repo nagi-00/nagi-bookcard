@@ -303,9 +303,9 @@ document.getElementById('clipboard-btn').addEventListener('click', async () => {
   try {
     await exportToClipboard(scene)
     document.getElementById('clipboard-btn').textContent = 'ᴅᴏɴᴇ!'
-    setTimeout(() => { document.getElementById('clipboard-btn').textContent = '클립보드' }, 2000)
+    setTimeout(() => { document.getElementById('clipboard-btn').textContent = 'ᴄʟɪᴘʙᴏᴀʀᴅ' }, 2000)
   } catch {
-    document.getElementById('clipboard-btn').textContent = '클립보드'
+    document.getElementById('clipboard-btn').textContent = 'ᴄʟɪᴘʙᴏᴀʀᴅ'
   }
 })
 
