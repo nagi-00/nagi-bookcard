@@ -83,8 +83,8 @@ function buildFolderContentHTML() {
     <div class="folder-content-inner">
       <div class="info-wrap">
         ${buildDateRowHTML(date)}
-        <div class="book-title">${escapeHTML(title) || '제목을 입력하세요'}</div>
-        <div class="book-author">${escapeHTML(author) || '저자'}</div>
+        <div class="book-title">${escapeHTML(title) || 'ᴛɪᴛʟᴇ'}</div>
+        <div class="book-author">${escapeHTML(author) || 'ᴀᴜᴛʜᴏʀ'}</div>
         ${ratingEnabled ? `<div class="star-row">${buildStarsHTML(rating)}</div>` : ''}
         ${quoteEnabled && quote ? `<div class="quote-block">"${escapeHTML(quote)}"</div>` : ''}
         <div class="folder-bottom">
