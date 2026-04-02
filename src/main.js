@@ -55,7 +55,7 @@ document.getElementById('panel').innerHTML = `
   </div>
 
   <div class="panel-section">
-    <div class="panel-section-title">배경</div>
+    <div class="panel-section-title">ʙᴀᴄᴋɢʀᴏᴜɴᴅs</div>
     <div class="bg-presets">
       <div class="bg-swatch active" data-bg-preset="beige" style="background:#F0EBE3" title="ᴏᴀᴛᴍɪʟʟ"></div>
       <div class="bg-swatch" data-bg-preset="white" style="background:#FFFFFF" title="sɴᴏᴡ"></div>
