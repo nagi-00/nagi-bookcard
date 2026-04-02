@@ -36,7 +36,7 @@ export function deriveColors(accentHex, theme) {
 
   if (theme === 'light') {
     const bg    = hslToHex(h, Math.max(s - 10, 5), 93)
-    const glass = `rgba(245,241,235,0.60)`
+    const glass = `rgba(245,241,235,0.82)`
     const text  = hslToHex(h, 20, 14)
     const textSub = hslToHex(h, 10, 52)
     const accent  = accentHex
@@ -44,7 +44,7 @@ export function deriveColors(accentHex, theme) {
     return { bg, glass, text, textSub, accent, sub }
   } else {
     const bg    = hslToHex(h, Math.min(s, 20), 12)
-    const glass = `rgba(18,22,38,0.68)`
+    const glass = `rgba(18,22,38,0.86)`
     const text  = hslToHex(h, 10, 90)
     const textSub = hslToHex(h, 8, 55)
     const accent  = accentHex

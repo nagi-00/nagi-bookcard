@@ -24,6 +24,14 @@ export const state = {
   bgColor: '#F0EBE3',
   bgImage: null,      // base64 | null
 
+  // 책 정보 추가
+  publisher: '',
+  pages: '',
+
+  // 도서 표지 목록 { id, src, x, y, scale }
+  books: [],
+  nextBookId: 0,
+
   // 액센트 컬러 (스포이드/picker로 선택한 값)
   accentColor: '#8FAF8E',
 

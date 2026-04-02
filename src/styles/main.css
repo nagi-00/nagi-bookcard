@@ -150,6 +150,23 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 .theme-toggle-wrap { display: flex; align-items: center; gap: 10px; }
 .theme-label { font-size: 12px; color: #8C8680; }
 
+/* 도서 목록 */
+#book-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.book-list-item { position: relative; width: 44px; flex-shrink: 0; }
+.book-thumb {
+  width: 44px; height: 62px; object-fit: cover;
+  border-radius: 4px; border: 1px solid #D6D0C8; display: block;
+}
+.book-delete-btn {
+  position: absolute; top: -5px; right: -5px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #2C2825; color: #fff; border: none;
+  font-size: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+}
+.book-delete-btn:hover { background: #8FAF8E; }
+
 /* 표지 업로드 */
 #cover-upload-btn {
   padding: 8px 14px; border-radius: 10px;
@@ -174,6 +191,7 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 #preview {
   display: flex; align-items: center; justify-content: center;
   padding: 40px;
+  background: #EEEAE3;
 }
 #preview-inner {
   transform-origin: center center;
@@ -234,3 +252,58 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   font-family: inherit; text-decoration: underline;
 }
 .key-setting-btn:hover { color: #8C8680; }
+
+/* ── 사진 편집기 ── */
+.photo-editor-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.photo-editor-modal {
+  background: #F8F6F2;
+  border-radius: 20px;
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 14px;
+  width: 100%; max-width: 420px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+}
+.photo-editor-title {
+  font-size: 14px; font-weight: 700; color: #2C2825;
+}
+.photo-editor-canvas-wrap {
+  display: flex; justify-content: center;
+  border-radius: 12px; overflow: hidden;
+  background: #1A1A1A;
+}
+.photo-editor-canvas { display: block; max-width: 100%; }
+.photo-editor-controls {
+  display: flex; align-items: center; gap: 10px;
+}
+.editor-label { font-size: 11px; color: #8C8680; white-space: nowrap; }
+.zoom-slider { flex: 1; accent-color: #8FAF8E; }
+.rotate-btns { display: flex; gap: 6px; }
+.rotate-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; background: #F0EBE3;
+  font-size: 16px; cursor: pointer; color: #2C2825;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+}
+.rotate-btn:hover { border-color: #8FAF8E; }
+.photo-editor-actions { display: flex; gap: 10px; }
+.editor-cancel-btn {
+  flex: 1; padding: 10px; border-radius: 12px;
+  border: 1.5px solid #D6D0C8; background: #EEEAE3;
+  font-size: 13px; font-weight: 600; cursor: pointer; color: #2C2825;
+  font-family: inherit;
+}
+.editor-cancel-btn:hover { border-color: #8FAF8E; }
+.editor-confirm-btn {
+  flex: 2; padding: 10px; border-radius: 12px;
+  border: none; background: #8FAF8E;
+  font-size: 13px; font-weight: 600; cursor: pointer; color: #fff;
+  font-family: inherit;
+}
+.editor-confirm-btn:hover { opacity: 0.85; }

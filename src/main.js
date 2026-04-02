@@ -1,7 +1,8 @@
 // src/main.js
 import './styles/main.css'
 import { state, setState, subscribe } from './state.js'
-import { renderCard } from './modules/card.js'
+import { renderCard, initCoverDrag, resetCoverOffset } from './modules/card.js'
+import { openPhotoEditor } from './modules/photoEditor.js'
 import { searchBooks } from './modules/search.js'
 import { deriveColors, applyCssVars, pickColorWithEyeDropper } from './modules/colorSystem.js'
 import { exportToPng, exportToClipboard } from './modules/export.js'
@@ -12,17 +13,11 @@ function esc(str) {
 
 // ── TTB 키 관리 ──
 const TTB_KEY_STORAGE = 'nagi_ttb_key'
-
-function getTtbKey() {
-  return localStorage.getItem(TTB_KEY_STORAGE) || ''
-}
-
-function saveTtbKey(key) {
-  localStorage.setItem(TTB_KEY_STORAGE, key.trim())
-}
+function getTtbKey() { return localStorage.getItem(TTB_KEY_STORAGE) || '' }
+function saveTtbKey(key) { localStorage.setItem(TTB_KEY_STORAGE, key.trim()) }
 
 // ── 온보딩 모달 ──
-const overlayHTML = `
+document.body.insertAdjacentHTML('beforeend', `
   <div id="onboarding-overlay">
     <div id="onboarding-modal">
       <div class="modal-title">알라딘 TTB 키 입력</div>
@@ -33,17 +28,10 @@ const overlayHTML = `
       <input id="ttb-key-input" type="text" placeholder="TTB 키를 입력하세요">
       <button id="ttb-key-save">저장하고 시작하기</button>
     </div>
-  </div>`
+  </div>`)
 
-document.body.insertAdjacentHTML('beforeend', overlayHTML)
-
-function showOnboarding() {
-  document.getElementById('onboarding-overlay').classList.remove('hidden')
-}
-
-function hideOnboarding() {
-  document.getElementById('onboarding-overlay').classList.add('hidden')
-}
+function showOnboarding() { document.getElementById('onboarding-overlay').classList.remove('hidden') }
+function hideOnboarding() { document.getElementById('onboarding-overlay').classList.add('hidden') }
 
 document.getElementById('ttb-key-save').addEventListener('click', () => {
   const key = document.getElementById('ttb-key-input').value.trim()
@@ -51,11 +39,9 @@ document.getElementById('ttb-key-save').addEventListener('click', () => {
   saveTtbKey(key)
   hideOnboarding()
 })
-
 document.getElementById('ttb-key-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('ttb-key-save').click()
 })
-
 if (!getTtbKey()) showOnboarding()
 
 // ── 패널 HTML 주입 ──
@@ -76,9 +62,12 @@ document.getElementById('panel').innerHTML = `
     <div class="panel-section-title">ʙᴏᴏᴋ ɪɴғᴏ</div>
     <input id="title-input" class="text-input" type="text" placeholder="ᴛɪᴛʟᴇ *">
     <input id="author-input" class="text-input" type="text" placeholder="ᴀᴜᴛʜᴏʀ *">
+    <input id="publisher-input" class="text-input" type="text" placeholder="ᴘᴜʙʟɪsʜᴇʀ">
+    <input id="pages-input" class="text-input" type="number" placeholder="ᴘᴀɢᴇs" min="1">
     <input id="date-input" class="text-input" type="date">
     <button id="cover-upload-btn"><svg height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="#ffffff"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64Z"/></svg>ᴜᴘʟᴏᴀᴅ ᴍʏ ᴏᴡɴ</button>
-    <input id="cover-file" type="file" accept="image/*" style="display:none">
+    <input id="cover-file" type="file" accept="image/*" style="display:none" multiple>
+    <div id="book-list"></div>
   </div>
 
   <div class="panel-section">
@@ -162,37 +151,51 @@ document.getElementById('panel').innerHTML = `
 document.getElementById('preview').innerHTML = `<div id="preview-inner"></div>`
 const previewInner = document.getElementById('preview-inner')
 
+// ── 도서 추가 헬퍼 ──
+function addBook(src) {
+  if (!src) return
+  setState({
+    books: [...state.books, { id: state.nextBookId, src, x: 0, y: 0, scale: 1 }],
+    nextBookId: state.nextBookId + 1,
+  })
+}
+
 // ── 초기 날짜 설정 ──
 const today = new Date()
-document.getElementById('date-input').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+document.getElementById('date-input').value =
+  `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
 setState({ date: today })
 
 // ── 카드 렌더링 + 스케일 ──
 function update() {
   const colors = deriveColors(state.accentColor, state.theme)
   applyCssVars(colors)
-  renderCard(previewInner)
+  const scene = renderCard(previewInner)
+  initCoverDrag(scene)
   scalePreview()
   syncStarUI()
-  syncPreviewBg()
-}
-
-function syncPreviewBg() {
-  const preview = document.getElementById('preview')
-  if (state.bgPreset === 'image' && state.bgImage) {
-    preview.style.backgroundImage = `url(${state.bgImage})`
-    preview.style.backgroundSize = 'cover'
-    preview.style.backgroundPosition = 'center'
-    preview.style.backgroundColor = ''
-  } else {
-    preview.style.backgroundImage = ''
-    preview.style.backgroundColor = state.bgColor
-  }
+  syncBookList()
 }
 
 function syncStarUI() {
   document.querySelectorAll('#star-input .star-btn').forEach((b, i) => {
     b.classList.toggle('on', i < state.rating)
+  })
+}
+
+function syncBookList() {
+  const list = document.getElementById('book-list')
+  if (!list) return
+  if (!state.books.length) { list.innerHTML = ''; return }
+  list.innerHTML = state.books.map(book => `
+    <div class="book-list-item">
+      <img class="book-thumb" src="${esc(book.src || '')}" alt="" onerror="this.style.display='none'">
+      <button class="book-delete-btn" data-id="${book.id}">✕</button>
+    </div>`).join('')
+  list.querySelectorAll('.book-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setState({ books: state.books.filter(b => b.id !== +btn.dataset.id) })
+    })
   })
 }
 
@@ -241,9 +244,10 @@ async function runSearch(q) {
   results.querySelectorAll('.search-result-item').forEach(el => {
     el.addEventListener('click', () => {
       const b = books[+el.dataset.idx]
-      setState({ title: b.title, author: b.author, cover: b.cover || null })
+      setState({ title: b.title, author: b.author })
       document.getElementById('title-input').value = b.title
       document.getElementById('author-input').value = b.author
+      if (b.cover) addBook(b.cover)
       results.classList.remove('open')
       document.getElementById('search-input').value = ''
     })
@@ -256,44 +260,47 @@ document.getElementById('change-key-btn').addEventListener('click', () => {
   showOnboarding()
 })
 
-// 닫기
+// 검색창 닫기
 document.addEventListener('click', e => {
   if (!document.getElementById('search-wrap').contains(e.target)) {
     document.getElementById('search-results').classList.remove('open')
   }
 })
 
-// 제목/저자
+// 제목 / 저자 / 출판사 / 페이지
 document.getElementById('title-input').addEventListener('input', e => setState({ title: e.target.value }))
 document.getElementById('author-input').addEventListener('input', e => setState({ author: e.target.value }))
+document.getElementById('publisher-input').addEventListener('input', e => setState({ publisher: e.target.value }))
+document.getElementById('pages-input').addEventListener('input', e => setState({ pages: e.target.value }))
 
 // 날짜
 document.getElementById('date-input').addEventListener('change', e => {
   setState({ date: new Date(e.target.value) })
 })
 
-// 표지 업로드
+// 도서 표지 업로드 (복수 파일)
 document.getElementById('cover-upload-btn').addEventListener('click', () => {
   document.getElementById('cover-file').click()
 })
 document.getElementById('cover-file').addEventListener('change', e => {
-  const file = e.target.files[0]; if (!file) return
-  const reader = new FileReader()
-  reader.onload = ev => setState({ cover: null, userImage: ev.target.result })
-  reader.readAsDataURL(file)
+  const files = Array.from(e.target.files)
+  files.forEach(file => {
+    const reader = new FileReader()
+    reader.onload = ev => addBook(ev.target.result)
+    reader.readAsDataURL(file)
+  })
+  e.target.value = ''  // 동일 파일 재선택 허용
 })
 
 // 감상 토글
 document.getElementById('quote-toggle').addEventListener('click', function() {
-  const on = this.classList.toggle('on')
-  setState({ quoteEnabled: on })
+  setState({ quoteEnabled: this.classList.toggle('on') })
 })
 document.getElementById('quote-input').addEventListener('input', e => setState({ quote: e.target.value }))
 
 // 별점 토글
 document.getElementById('rating-toggle').addEventListener('click', function() {
-  const on = this.classList.toggle('on')
-  setState({ ratingEnabled: on })
+  setState({ ratingEnabled: this.classList.toggle('on') })
 })
 
 // 별점 클릭
@@ -307,6 +314,7 @@ document.querySelectorAll('.ratio-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'))
     this.classList.add('active')
+    resetCoverOffset()
     setState({ ratio: this.dataset.ratio })
   })
 })
@@ -330,7 +338,12 @@ document.getElementById('bg-image-btn').addEventListener('click', () => {
 document.getElementById('bg-file').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return
   const reader = new FileReader()
-  reader.onload = ev => setState({ bgPreset: 'image', bgImage: ev.target.result })
+  reader.onload = async ev => {
+    const ratioMap = { '9:16': [9,16], '3:4': [3,4], '1:1': [1,1], '4:3': [4,3], '16:9': [16,9] }
+    const [rw, rh] = ratioMap[state.ratio]
+    const result = await openPhotoEditor(ev.target.result, rw, rh)
+    if (result) setState({ bgPreset: 'image', bgImage: result })
+  }
   reader.readAsDataURL(file)
 })
 
@@ -366,8 +379,7 @@ document.getElementById('custom-font-input').addEventListener('input', e => {
 
 // 테마
 document.getElementById('theme-toggle').addEventListener('click', function() {
-  const isDark = this.classList.toggle('on')
-  setState({ theme: isDark ? 'dark' : 'light' })
+  setState({ theme: this.classList.toggle('on') ? 'dark' : 'light' })
 })
 
 // 내보내기

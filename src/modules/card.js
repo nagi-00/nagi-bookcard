@@ -9,9 +9,13 @@ const SIZES = {
   '16:9': [640, 360],
 }
 
-// portrait: 9:16, 3:4 — 폴더 하단 65%, 표지 위에서 꽂힘
-// landscape: 1:1, 4:3, 16:9 — 폴더 우측 70%, 표지 좌측에서 꽂힘
 const PORTRAIT_RATIOS = new Set(['9:16', '3:4'])
+const FOLDER_MARGIN = 24   // card edge padding
+const BODY_OFFSET   = 26   // folder-body.top in CSS — 2px overlap with 28px tab hides junction
+
+export function resetCoverOffset() {
+  state.books.forEach(b => { b.x = 0; b.y = 0 })
+}
 
 function escapeHTML(str) {
   return String(str)
@@ -21,26 +25,20 @@ function escapeHTML(str) {
     .replace(/"/g, '&quot;')
 }
 
-function isPortrait(ratio) {
-  return PORTRAIT_RATIOS.has(ratio)
-}
+function isPortrait(ratio) { return PORTRAIT_RATIOS.has(ratio) }
 
 function formatDate(date) {
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-  const day = days[date.getDay()]
   const d = date.getDate()
-  // 앞뒤 2일씩 표시
   const pills = [-2,-1,0,1,2].map(offset => {
     const dd = new Date(date); dd.setDate(d + offset)
     return { num: dd.getDate(), today: offset === 0 }
   })
-  return { day, pills }
+  return { day: days[date.getDay()], pills }
 }
 
 function formatTime(date) {
-  return date.toLocaleTimeString('ko-KR', {
-    hour: '2-digit', minute: '2-digit', hour12: false
-  })
+  return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 function formatDateTag(date) {
@@ -48,10 +46,8 @@ function formatDateTag(date) {
 }
 
 function buildBarcodeHTML() {
-  const heights = [100,55,80,100,45,90,65,100,52,80,100,60]
-  return heights.map(h =>
-    `<div class="barcode-bar" style="height:${h}%"></div>`
-  ).join('')
+  const bars = [2,1,1,2,1,1,3,1,2,1,1,2,1,3,1,1,2,1,1,1,2,1,2,1,1,3,1,2,1,1]
+  return bars.map(w => `<div class="barcode-bar" style="width:${w}px;"></div>`).join('')
 }
 
 function buildDateRowHTML(date) {
@@ -73,23 +69,28 @@ function buildStarsHTML(rating) {
 }
 
 function buildFolderContentHTML() {
-  const { title, author, quote, quoteEnabled, rating, ratingEnabled } = state
+  const { title, author, quote, quoteEnabled, rating, ratingEnabled, publisher, pages } = state
   const date = state.date instanceof Date ? state.date : new Date(state.date)
   const dateTag = formatDateTag(date)
   const timeStr = formatTime(date)
 
+  const pubMeta = [
+    publisher ? escapeHTML(publisher) : '',
+    pages    ? escapeHTML(String(pages)) + 'p' : '',
+  ].filter(Boolean).join(' · ')
+
   return `
-    <i class="folder-arrow">↗</i>
     <div class="folder-content-inner">
       <div class="info-wrap">
         ${buildDateRowHTML(date)}
         <div class="book-title">${escapeHTML(title) || 'ᴛɪᴛʟᴇ'}</div>
         <div class="book-author">${escapeHTML(author) || 'ᴀᴜᴛʜᴏʀ'}</div>
         ${ratingEnabled ? `<div class="star-row">${buildStarsHTML(rating)}</div>` : ''}
-        ${quoteEnabled && quote ? `<div class="quote-block">"${escapeHTML(quote)}"</div>` : ''}
-        <div class="folder-bottom">
+        ${quoteEnabled && quote ? `<div class="quote-block">${escapeHTML(quote)}</div>` : ''}
+        <div class="folder-bottom" style="margin-top:auto;">
           <span class="brand-label">nagi</span>
           <div class="bottom-right">
+            ${pubMeta ? `<span class="pub-label">${pubMeta}</span>` : ''}
             <span class="time-label">${timeStr} · ${dateTag}</span>
             <div class="barcode">${buildBarcodeHTML()}</div>
           </div>
@@ -98,116 +99,249 @@ function buildFolderContentHTML() {
     </div>`
 }
 
+// Build back + front pair for every book
+function buildBooksHTML(W, H, layout, folderBodyTop, folderBodyLeft) {
+  return state.books.map(book => {
+    let baseW, baseH, baseCX, baseCY
+
+    if (layout === 'portrait') {
+      baseW = Math.round(W * 0.30)
+      baseH = Math.round(baseW * 1.42)
+      baseCX = Math.round(W / 2)
+      baseCY = folderBodyTop - Math.round(baseH * 0.05)
+    } else {
+      baseH = Math.round(H * 0.62)
+      baseW = Math.round(baseH / 1.42)
+      baseCX = folderBodyLeft + Math.round(baseW * 0.05)
+      baseCY = Math.round(H / 2)
+    }
+
+    const bW = Math.round(baseW * book.scale)
+    const bH = Math.round(baseH * book.scale)
+    const bX = Math.round(baseCX + book.x - bW / 2)
+    const bY = Math.round(baseCY + book.y - bH / 2)
+
+    const src = book.src
+    const imgSt = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
+    const imgBack  = src ? `<img src="${src}" style="${imgSt}" alt="">`
+                        : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
+    const imgFront = src ? `<img src="${src}" style="${imgSt}" alt="">` : ''
+
+    let frontExtra
+    if (layout === 'portrait') {
+      const frontH = Math.max(0, Math.min(bH, folderBodyTop - bY))
+      frontExtra = `width:${bW}px;height:${frontH}px;border-radius:6px 6px 0 0;`
+    } else {
+      const frontW = Math.max(0, Math.min(bW, folderBodyLeft - bX))
+      frontExtra = `width:${frontW}px;height:${bH}px;border-radius:6px 0 0 6px;`
+    }
+
+    return `
+      <div class="book-back" data-id="${book.id}"
+        data-base-cx="${baseCX}" data-base-cy="${baseCY}"
+        data-base-w="${baseW}" data-base-h="${baseH}"
+        data-bw="${bW}" data-bh="${bH}"
+        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:0 16px 48px rgba(0,0,0,0.28),0 4px 12px rgba(0,0,0,0.14);">${imgBack}</div>
+      <div class="book-front" data-id="${book.id}"
+        style="position:absolute;z-index:5;top:${bY}px;left:${bX}px;overflow:hidden;${frontExtra}">${imgFront}</div>`
+  }).join('')
+}
+
+// ── Portrait layout ──
 function applyPortraitLayout(scene, W, H) {
-  // 폴더: 하단 65% (= y: H*0.35)
-  const folderTop = Math.round(H * 0.35)
-  const folderH = H - folderTop
-  // 표지: W*0.3 × W*0.42, 가로 중앙, top: H*0.12
-  const coverW = Math.round(W * 0.30)
-  const coverH = Math.round(coverW * 1.42)
-  const coverX = Math.round((W - coverW) / 2)
-  const coverY = Math.round(H * 0.12)
-  const coverMid = coverY + Math.round(coverH / 2)
+  const baseW = Math.round(W * 0.30)
+  const baseH = Math.round(baseW * 1.42)
+
+  const folderBodyTop  = Math.round(H * 0.52)
+  const folderLayerTop = folderBodyTop - BODY_OFFSET
+  const folderLayerH   = H - folderLayerTop - FOLDER_MARGIN
+  const folderLayerW   = W - FOLDER_MARGIN * 2
+  const tabW           = Math.round(folderLayerW * 0.54)
+  const topPad         = Math.round(baseH * 0.48 + 18)
+
+  scene.dataset.layout       = 'portrait'
+  scene.dataset.folderBodyTop = folderBodyTop
 
   scene.innerHTML = `
     <div class="card-bg-overlay"></div>
-
-    <div class="cover-back" style="
-      top:${coverY}px; left:${coverX}px;
-      width:${coverW}px; height:${coverH}px;">
-      ${buildCoverImg()}
-    </div>
-
-    <div class="folder-layer" style="
-      top:${coverMid}px; left:0; right:0;
-      height:${H - coverMid}px;">
-      <div class="folder-tab" style="width:${Math.round(W*0.34)}px;">
+    ${buildBooksHTML(W, H, 'portrait', folderBodyTop, 0)}
+    <div class="folder-layer" style="top:${folderLayerTop}px;left:${FOLDER_MARGIN}px;width:${folderLayerW}px;height:${folderLayerH}px;">
+      <div class="folder-tab" style="width:${tabW}px;">
         <span class="folder-tab-label">${escapeHTML(state.title) || 'bookcard'}</span>
       </div>
       <div class="folder-body">
         <div class="folder-glass"></div>
-        <div class="folder-content" style="padding:${Math.round(coverH/2 + 16)}px 22px 18px;">
+        <div class="folder-content" style="padding:${topPad}px 22px 18px;">
           ${buildFolderContentHTML()}
         </div>
       </div>
-    </div>
-
-    <div class="cover-front" style="
-      top:${coverY}px; left:${coverX}px;
-      width:${coverW}px; height:${Math.round(coverH/2)}px;">
-      ${buildCoverImg(coverW, coverH)}
     </div>`
 }
 
+// ── Landscape layout ──
 function applyLandscapeLayout(scene, W, H) {
-  // 폴더: 우측 70% (x: W*0.30)
-  const folderLeft = Math.round(W * 0.30)
-  const folderW = W - folderLeft
-  // 표지: H*0.22 × H*0.31, 세로 중앙, left: W*0.04
-  const coverH2 = Math.round(H * 0.68)
-  const coverW2 = Math.round(coverH2 / 1.42)
-  const coverX = Math.round(W * 0.04)
-  const coverY = Math.round((H - coverH2) / 2)
-  const coverMid = coverX + Math.round(coverW2 / 2)
+  const folderBodyLeft = Math.round(W * 0.38)
+  const folderLayerTop = FOLDER_MARGIN
+  const folderLayerH   = H - FOLDER_MARGIN * 2
+  const folderLayerW   = W - folderBodyLeft - FOLDER_MARGIN
+  const tabW           = Math.round(folderLayerW * 0.68)
+
+  scene.dataset.layout        = 'landscape'
+  scene.dataset.folderBodyLeft = folderBodyLeft
 
   scene.innerHTML = `
     <div class="card-bg-overlay"></div>
-
-    <div class="cover-back" style="
-      top:${coverY}px; left:${coverX}px;
-      width:${coverW2}px; height:${coverH2}px;
-      border-radius: 6px 0 0 6px;">
-      ${buildCoverImg()}
-    </div>
-
-    <div class="folder-layer" style="
-      top:0; left:${coverMid}px;
-      width:${W - coverMid}px; height:${H}px;">
-      <div class="folder-tab" style="
-        top:${Math.round(H*0.12)}px; left:-1px; width:18px; height:${Math.round(H*0.36)}px;
-        border-radius:9px 0 0 9px; border-right:none; border-left:1px solid rgba(255,255,255,0.85);">
+    ${buildBooksHTML(W, H, 'landscape', 0, folderBodyLeft)}
+    <div class="folder-layer" style="top:${folderLayerTop}px;left:${folderBodyLeft}px;width:${folderLayerW}px;height:${folderLayerH}px;">
+      <div class="folder-tab" style="width:${tabW}px;">
+        <span class="folder-tab-label">${escapeHTML(state.title) || 'bookcard'}</span>
       </div>
-      <div class="folder-body" style="top:0; border-radius:0 20px 20px 0;">
+      <div class="folder-body">
         <div class="folder-glass"></div>
-        <div class="folder-content" style="padding:20px 18px 18px ${Math.round(coverW2/2 + 20)}px;">
+        <div class="folder-content" style="padding:28px 18px 18px 20px;">
           ${buildFolderContentHTML()}
         </div>
       </div>
-    </div>
-
-    <div class="cover-front" style="
-      top:${coverY}px; left:${coverX}px;
-      width:${Math.round(coverW2/2)}px; height:${coverH2}px;
-      border-radius: 6px 0 0 6px;">
-      ${buildCoverImg(coverW2, coverH2)}
     </div>`
 }
 
-function buildCoverImg(w, h) {
-  const src = state.cover || state.userImage
-  if (!src) return `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.4;"></div>`
-  if (w && h) return `<img src="${src}" style="width:${w}px;height:${h}px;" alt="">`
-  return `<img src="${src}" alt="">`
+// ── Drag + Zoom (per book) ──
+export function initCoverDrag(scene) {
+  if (!scene) return
+  const layout = scene.dataset.layout
+  if (!layout) return
+
+  const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
+  const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
+
+  function getScale() {
+    const rect = scene.getBoundingClientRect()
+    return rect.width / scene.offsetWidth
+  }
+  function pointerPos(e) {
+    const t = e.touches?.[0] ?? e
+    return { x: t.clientX, y: t.clientY }
+  }
+
+  state.books.forEach(book => {
+    const backEl  = scene.querySelector(`.book-back[data-id="${book.id}"]`)
+    const frontEl = scene.querySelector(`.book-front[data-id="${book.id}"]`)
+    if (!backEl) return
+
+    const baseCX = +backEl.dataset.baseCx
+    const baseCY = +backEl.dataset.baseCy
+    const baseW  = +backEl.dataset.baseW
+    const baseH  = +backEl.dataset.baseH
+
+    let dragStart = null
+
+    function onDown(e) {
+      e.preventDefault()
+      e.stopPropagation()
+      const p = pointerPos(e)
+      dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
+      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grabbing'))
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+      document.addEventListener('touchmove', onMove, { passive: false })
+      document.addEventListener('touchend', onUp)
+    }
+
+    function onMove(e) {
+      if (!dragStart) return
+      e.preventDefault()
+      const p     = pointerPos(e)
+      const scale = getScale()
+      const bW    = +backEl.dataset.bw
+      const bH    = +backEl.dataset.bh
+
+      if (layout === 'portrait') {
+        book.y = dragStart.oy + (p.y - dragStart.py) / scale
+        const bY     = Math.round(baseCY + book.y - bH / 2)
+        const frontH = Math.max(0, Math.min(bH, folderBodyTop - bY))
+        backEl.style.top = bY + 'px'
+        if (frontEl) { frontEl.style.top = bY + 'px'; frontEl.style.height = frontH + 'px' }
+      } else {
+        book.x = dragStart.ox + (p.x - dragStart.px) / scale
+        const bX     = Math.round(baseCX + book.x - bW / 2)
+        const frontW = Math.max(0, Math.min(bW, folderBodyLeft - bX))
+        backEl.style.left = bX + 'px'
+        if (frontEl) { frontEl.style.left = bX + 'px'; frontEl.style.width = frontW + 'px' }
+      }
+    }
+
+    function onUp() {
+      dragStart = null
+      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grab'))
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onUp)
+    }
+
+    function onWheel(e) {
+      e.preventDefault()
+      e.stopPropagation()
+      const prev = book.scale
+      book.scale = Math.max(0.3, Math.min(4, book.scale - e.deltaY * 0.001))
+      if (Math.abs(book.scale - prev) < 0.0005) return
+
+      const newBW = Math.round(baseW * book.scale)
+      const newBH = Math.round(baseH * book.scale)
+      const bX    = Math.round(baseCX + book.x - newBW / 2)
+      const bY    = Math.round(baseCY + book.y - newBH / 2)
+
+      backEl.style.cssText = backEl.style.cssText
+        .replace(/top:[^;]+/, `top:${bY}px`)
+        .replace(/left:[^;]+/, `left:${bX}px`)
+        .replace(/width:[^;]+/, `width:${newBW}px`)
+        .replace(/height:[^;]+/, `height:${newBH}px`)
+      backEl.dataset.bw = newBW; backEl.dataset.bh = newBH
+      const bi = backEl.querySelector('img')
+      if (bi) { bi.style.width = newBW + 'px'; bi.style.height = newBH + 'px' }
+
+      if (frontEl) {
+        frontEl.style.top  = bY + 'px'
+        frontEl.style.left = bX + 'px'
+        const fi = frontEl.querySelector('img')
+        if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
+        if (layout === 'portrait') {
+          frontEl.style.width  = newBW + 'px'
+          frontEl.style.height = Math.max(0, Math.min(newBH, folderBodyTop - bY)) + 'px'
+        } else {
+          frontEl.style.width  = Math.max(0, Math.min(newBW, folderBodyLeft - bX)) + 'px'
+          frontEl.style.height = newBH + 'px'
+        }
+      }
+    }
+
+    ;[backEl, frontEl].forEach(el => {
+      if (!el) return
+      el.style.cursor = 'grab'
+      el.addEventListener('mousedown',  onDown)
+      el.addEventListener('touchstart', onDown, { passive: false })
+      el.addEventListener('wheel',      onWheel, { passive: false })
+    })
+  })
 }
 
+// ── 카드 렌더링 ──
 export function renderCard(container) {
   const [W, H] = SIZES[state.ratio]
-  const scene = container.querySelector('.card-scene') || document.createElement('div')
+  const scene  = container.querySelector('.card-scene') || document.createElement('div')
 
   scene.className = 'card-scene'
   scene.setAttribute('data-theme', state.theme)
-  scene.setAttribute('data-font', state.font)
-  scene.style.width = W + 'px'
+  scene.setAttribute('data-font',  state.font)
+  scene.style.width  = W + 'px'
   scene.style.height = H + 'px'
 
-  // 커스텀 로컬 폰트
   if (state.font === 'custom' && state.customFont) {
     scene.style.setProperty('--font-ko', `'${state.customFont}', sans-serif`)
   } else {
     scene.style.removeProperty('--font-ko')
   }
 
-  // 배경
   if (state.bgPreset === 'image' && state.bgImage) {
     scene.classList.add('bg-image')
     scene.style.backgroundImage = `url(${state.bgImage})`

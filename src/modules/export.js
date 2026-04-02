@@ -19,14 +19,14 @@ export async function exportToPng(cardScene) {
 }
 
 export async function exportToClipboard(cardScene) {
-  try {
-    const dataUrl = await toPng(cardScene, PNG_OPTIONS)
-    const res = await fetch(dataUrl)
-    const blob = await res.blob()
-    await navigator.clipboard.write([
-      new ClipboardItem({ 'image/png': blob })
-    ])
-  } catch (err) {
-    throw new Error(`클립보드 복사에 실패했습니다: ${err.message}`)
+  if (!navigator.clipboard?.write) {
+    throw new Error('이 브라우저는 클립보드 복사를 지원하지 않습니다')
   }
+  // Pass Promise<Blob> directly so clipboard.write() fires within the user gesture
+  const blobPromise = toPng(cardScene, PNG_OPTIONS)
+    .then(dataUrl => fetch(dataUrl))
+    .then(res => res.blob())
+  await navigator.clipboard.write([
+    new ClipboardItem({ 'image/png': blobPromise })
+  ])
 }

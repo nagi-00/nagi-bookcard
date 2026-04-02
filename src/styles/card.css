@@ -58,20 +58,20 @@
   position: absolute;
   inset: 0;
   background: var(--color-glass);
-  backdrop-filter: blur(24px) saturate(1.5) brightness(1.04);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5) brightness(1.04);
-  border: 1px solid rgba(255,255,255,0.85);
+  backdrop-filter: blur(48px) saturate(2.4) brightness(1.06);
+  -webkit-backdrop-filter: blur(48px) saturate(2.4) brightness(1.06);
+  border: 1px solid rgba(255,255,255,0.92);
 }
 
 /* 폴더 탭 */
 .folder-tab {
   position: absolute;
   top: 0; left: 20px;
-  height: 22px;
+  height: 28px;
   border-radius: 9px 9px 0 0;
   background: var(--color-glass);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(48px) saturate(2.4);
+  -webkit-backdrop-filter: blur(48px) saturate(2.4);
   border: 1px solid rgba(255,255,255,0.85);
   border-bottom: none;
   display: flex; align-items: center;
@@ -90,8 +90,8 @@
 /* 폴더 바디 */
 .folder-body {
   position: absolute;
-  top: 20px; left: 0; right: 0; bottom: 0;
-  border-radius: 20px 20px 0 0;
+  top: 26px; left: 0; right: 0; bottom: 0;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -100,6 +100,10 @@
   position: absolute;
   inset: 0;
   z-index: 4;
+  display: flex; flex-direction: column;
+}
+.folder-content-inner {
+  height: 100%;
   display: flex; flex-direction: column;
 }
 
@@ -125,7 +129,7 @@
 /* ── 정보 영역 ── */
 .info-wrap {
   display: flex; flex-direction: column;
-  height: 100%;
+  flex: 1; min-height: 0;
 }
 
 .date-row {
@@ -184,16 +188,18 @@
   border-left: 2px solid var(--color-accent);
   padding-left: 10px; opacity: 0.85;
   flex: 1; overflow: hidden;
+  white-space: pre-wrap; word-break: break-word;
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
-  margin-bottom: auto;
 }
 
 .folder-bottom {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 4px;
   border-top: 1px solid rgba(0,0,0,0.06);
   padding-top: 8px; margin-top: 8px;
+  flex-shrink: 0;
 }
 .brand-label {
   font-size: 9px; font-weight: 700;
@@ -202,7 +208,12 @@
   font-family: var(--font-en);
 }
 .bottom-right {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+}
+.pub-label {
+  font-size: 8px; color: var(--color-text-sub);
+  opacity: 0.45; letter-spacing: 0.04em;
+  font-family: var(--font-en);
 }
 .time-label {
   font-size: 9px; color: var(--color-text-sub);
@@ -211,11 +222,11 @@
   font-family: var(--font-en);
 }
 .barcode {
-  display: flex; align-items: flex-end; gap: 2px; height: 14px;
+  display: flex; align-items: stretch; gap: 1px; height: 14px;
 }
 .barcode-bar {
-  background: var(--color-text); opacity: 0.18;
-  width: 2px; border-radius: 1px;
+  background: var(--color-text); opacity: 0.22;
+  height: 100%; border-radius: 0.5px;
 }
 
 /* ── 다크 테마 오버라이드 ── */
