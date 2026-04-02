@@ -20,13 +20,13 @@ function saveTtbKey(key) { localStorage.setItem(TTB_KEY_STORAGE, key.trim()) }
 document.body.insertAdjacentHTML('beforeend', `
   <div id="onboarding-overlay">
     <div id="onboarding-modal">
-      <div class="modal-title">알라딘 TTB 키 입력</div>
+      <div class="modal-title">TTB key</div>
       <div class="modal-desc">
-        책 검색 기능을 사용하려면 알라딘 TTB API 키가 필요해요.<br>
-        키는 <a href="https://www.aladin.co.kr/ttb/wblog_list.aspx" target="_blank" rel="noopener">알라딘 파트너스</a>에서 발급받을 수 있어요.
+        책 검색 기능을 사용하려면 알라딘 TTB API 키가 필요합니다.<br>
+        키는 <a href="https://www.aladin.co.kr/ttb/wblog_manage.aspx" target="_blank" rel="noopener">알라딘 Thanks to Bloggers↗</a>에서 발급받을 수 있습니다.
       </div>
-      <input id="ttb-key-input" type="text" placeholder="TTB 키를 입력하세요">
-      <button id="ttb-key-save">저장하고 시작하기</button>
+      <input id="ttb-key-input" type="text" placeholder="TTB key here">
+      <button id="ttb-key-save">Save & Start</button>
     </div>
   </div>`)
 
@@ -126,7 +126,7 @@ document.getElementById('panel').innerHTML = `
       <option value="modern">Modern — Pretendard</option>
       <option value="literary">Literary — Noto Serif KR</option>
       <option value="soft">Soft — Gowun Dodum</option>
-      <option value="custom">직접 입력 (로컬 폰트)</option>
+      <option value="custom">Select...</option>
     </select>
     <input id="custom-font-input" class="text-input" type="text" placeholder="폰트 이름 (예: 나눔명조)" style="display:none">
   </div>
