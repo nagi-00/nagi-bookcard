@@ -14,7 +14,7 @@ const FOLDER_MARGIN = 24   // card edge padding
 const BODY_OFFSET   = 26   // folder-body.top in CSS — 2px overlap with 28px tab hides junction
 
 export function resetCoverOffset() {
-  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0 })
+  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0; b.scale = 1 })
 }
 
 function escapeHTML(str) {
@@ -65,7 +65,8 @@ function buildStarsHTML(rating) {
 
 function buildFolderContentHTML() {
   const { title, author, quote, quoteEnabled, rating, ratingEnabled, publisher, pages } = state
-  const date = state.date instanceof Date ? state.date : new Date(state.date)
+  const raw = state.date instanceof Date ? state.date : new Date(state.date)
+  const date = isNaN(raw) ? new Date() : raw
   const dateTag = formatDateTag(date)
   const timeStr = formatTime(date)
 

@@ -280,9 +280,17 @@ document.getElementById('author-input').addEventListener('input', e => setState(
 document.getElementById('publisher-input').addEventListener('input', e => setState({ publisher: e.target.value }))
 document.getElementById('pages-input').addEventListener('input', e => setState({ pages: e.target.value }))
 
-// 날짜
+// 날짜 (빈 값/잘못된 값은 무시, 기존 시·분·초 보존)
 document.getElementById('date-input').addEventListener('change', e => {
-  setState({ date: new Date(e.target.value) })
+  const val = e.target.value
+  if (!val) return
+  const [y, m, d] = val.split('-').map(Number)
+  if (!y || !m || !d) return
+  const prev = state.date instanceof Date && !isNaN(state.date) ? state.date : new Date()
+  const next = new Date(prev)
+  next.setFullYear(y, m - 1, d)
+  if (isNaN(next)) return
+  setState({ date: next })
 })
 
 // 도서 표지 업로드 (복수 파일)
@@ -397,26 +405,35 @@ document.getElementById('theme-toggle').addEventListener('click', function() {
 })
 
 // 내보내기
+const SAVE_LABEL = 'sᴀᴠᴇ ᴛᴏ .ᴘɴɢ'
 document.getElementById('save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('save-btn')
   const scene = previewInner.querySelector('.card-scene')
   if (!scene) return
-  document.getElementById('save-btn').textContent = 'sᴀᴠɪɴɢ...'
+  btn.textContent = 'sᴀᴠɪɴɢ...'
   try {
     await exportToPng(scene)
-  } finally {
-    document.getElementById('save-btn').textContent = 'sᴀᴠᴇ ᴛᴏ .ᴘɴɢ'
+    btn.textContent = SAVE_LABEL
+  } catch (err) {
+    btn.textContent = 'ғᴀɪʟᴇᴅ'
+    setTimeout(() => { btn.textContent = SAVE_LABEL }, 2000)
+    console.error('[export]', err)
   }
 })
+const CLIPBOARD_LABEL = 'ᴄᴏᴘʏ ᴛᴏ ᴄʟɪᴘʙᴏᴀʀᴅ'
 document.getElementById('clipboard-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('clipboard-btn')
   const scene = previewInner.querySelector('.card-scene')
   if (!scene) return
-  document.getElementById('clipboard-btn').textContent = 'ᴄᴏᴘʏɪɴɢ...'
+  btn.textContent = 'ᴄᴏᴘʏɪɴɢ...'
   try {
     await exportToClipboard(scene)
-    document.getElementById('clipboard-btn').textContent = 'ᴅᴏɴᴇ!'
-    setTimeout(() => { document.getElementById('clipboard-btn').textContent = 'ᴄʟɪᴘʙᴏᴀʀᴅ' }, 2000)
-  } catch {
-    document.getElementById('clipboard-btn').textContent = 'ᴄʟɪᴘʙᴏᴀʀᴅ'
+    btn.textContent = 'ᴅᴏɴᴇ!'
+    setTimeout(() => { btn.textContent = CLIPBOARD_LABEL }, 2000)
+  } catch (err) {
+    btn.textContent = 'ғᴀɪʟᴇᴅ'
+    setTimeout(() => { btn.textContent = CLIPBOARD_LABEL }, 2000)
+    console.error('[clipboard]', err)
   }
 })
 
