@@ -45,7 +45,7 @@ body {
 #search-btn {
   position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
   background: none; border: none; cursor: pointer; font-size: 15px;
-  color: #8C8680;
+  color: #8FAF8E;
 }
 #search-results {
   background: #fff; border: 1px solid #D6D0C8; border-radius: 10px;
@@ -138,6 +138,24 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   width: 32px; height: 32px; border-radius: 8px;
   border: 1.5px solid #D6D0C8; padding: 2px; cursor: pointer;
 }
+
+/* 텍스트 색 토글 */
+.text-color-row { display: flex; align-items: center; gap: 8px; }
+.text-color-preset {
+  padding: 5px 12px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; background: #F0EBE3;
+  font-size: 11px; font-weight: 600; color: #8C8680;
+  cursor: pointer; transition: all 0.15s;
+  font-family: inherit;
+}
+.text-color-preset.active {
+  border-color: #8FAF8E; background: #8FAF8E; color: #fff;
+}
+#text-color-picker {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; padding: 2px; cursor: pointer;
+  margin-left: auto;
+}
 .eyedropper-btn {
   padding: 5px 10px; border-radius: 8px;
   border: 1.5px solid #D6D0C8; background: #F0EBE3;
@@ -179,10 +197,11 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 #cover-upload-btn {
   padding: 8px 14px; border-radius: 10px;
   border: 1.5px dashed #D6D0C8; background: none;
-  font-size: 12px; color: #8C8680; cursor: pointer;
+  font-size: 12px; color: #8FAF8E; cursor: pointer;
   width: 100%; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
 }
-#cover-upload-btn:hover { border-color: #8FAF8E; color: #8FAF8E; }
+#cover-upload-btn:hover { border-color: #8FAF8E; opacity: 0.8; }
 
 /* 내보내기 버튼 */
 .export-buttons { display: flex; gap: 10px; }
@@ -200,11 +219,75 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   display: flex; align-items: center; justify-content: center;
   padding: 40px;
   background: #EEEAE3;
+  overflow: hidden;
 }
 #preview-inner {
-  transform-origin: center center;
-  /* scale 계산은 main.js에서 동적으로 적용 */
+  flex-shrink: 0;
 }
+
+/* ── Collapsible ── */
+.collapsible-header { cursor: pointer; user-select: none; }
+.collapsible-header:hover { color: #2C2825; }
+.collapse-arrow { font-size: 8px; margin-left: 4px; }
+.collapsible-body { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 로컬 폰트 ── */
+#local-font-wrap {
+  display: none; flex-direction: column; gap: 6px; margin-top: 4px;
+  overflow: hidden;
+}
+#local-font-wrap.open { display: flex; }
+.local-font-search-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.local-font-search-row #local-font-search { flex: 1; }
+#local-font-count {
+  font-size: 10px; color: #B8B2AA; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Inter', sans-serif;
+}
+#local-font-list {
+  max-height: 200px; overflow-y: auto;
+  border: 1px solid #D6D0C8; border-radius: 12px;
+  background: #FDFCFA;
+  scrollbar-width: thin;
+  scrollbar-color: #D6D0C8 transparent;
+}
+.local-font-item {
+  padding: 9px 14px; font-size: 13px; color: #2C2825;
+  cursor: pointer; border-bottom: 1px solid #F0EBE3;
+  transition: background 0.1s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.local-font-item:last-child { border-bottom: none; }
+.local-font-item:hover { background: #F0EBE3; }
+.local-font-item.active {
+  background: #E5EFE4; color: #4A7A49;
+  font-weight: 600;
+}
+.local-font-unavail {
+  padding: 14px 12px; font-size: 11px; color: #B8B2AA;
+  text-align: center;
+}
+/* 선택된 로컬 폰트 칩 */
+#local-font-chip {
+  display: none; align-items: center; gap: 0;
+  background: #E5EFE4; border-radius: 8px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid #CCDBC5;
+  cursor: pointer;
+}
+#local-font-chip:hover { background: #D8EAD7; }
+#local-font-chip-name {
+  flex: 1; font-size: 12px; color: #3A6B39; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#local-font-chip-clear {
+  background: none; border: none; cursor: pointer;
+  font-size: 14px; color: #8FAF8E; padding: 0 0 0 8px;
+  line-height: 1; font-family: inherit;
+}
+#local-font-chip-clear:hover { color: #4A7A49; }
 
 /* 반응형 */
 @media (max-width: 768px) {
@@ -247,8 +330,18 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   outline: none; font-family: inherit; margin-bottom: 12px;
 }
 #ttb-key-input:focus { border-color: #8FAF8E; }
+.modal-btns {
+  display: flex; gap: 8px;
+}
+#ttb-key-skip {
+  flex: 1; padding: 11px; border-radius: 12px;
+  border: 1px solid #D6D0C8; background: transparent;
+  color: #8C8680; font-size: 13px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+}
+#ttb-key-skip:hover { background: #F0EBE3; }
 #ttb-key-save {
-  width: 100%; padding: 11px; border-radius: 12px; border: none;
+  flex: 2; padding: 11px; border-radius: 12px; border: none;
   background: #8FAF8E; color: #fff;
   font-size: 13px; font-weight: 600; cursor: pointer;
   font-family: inherit;
@@ -315,3 +408,66 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   font-family: inherit;
 }
 .editor-confirm-btn:hover { opacity: 0.85; }
+
+/* ── 사진 편집기: 추가 컨트롤 ── */
+.editor-btn-row { display: flex; gap: 6px; }
+.edit-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; background: #F0EBE3;
+  font-size: 15px; cursor: pointer; color: #2C2825;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; transition: border-color 0.15s;
+}
+.edit-btn:hover { border-color: #8FAF8E; }
+.photo-editor-crop-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.crop-btn {
+  padding: 5px 10px; border-radius: 8px;
+  border: 1.5px solid #D6D0C8; background: #F0EBE3;
+  font-size: 11px; font-weight: 600; color: #8C8680;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+}
+.crop-btn.active  { border-color: #8FAF8E; background: #8FAF8E; color: #fff; }
+.crop-btn:not(.active):hover { border-color: #8FAF8E; }
+
+/* ── 내보내기 크롭 오버레이 ── */
+.crop-export-overlay {
+  position: absolute; inset: 0; z-index: 200; touch-action: none;
+}
+.crop-export-canvas {
+  position: absolute; inset: 0; cursor: crosshair;
+  width: 100%; height: 100%;
+}
+.crop-export-bar {
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(24,20,16,0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 14px; padding: 8px 12px;
+  z-index: 201; white-space: nowrap;
+}
+.crop-ratio-group, .crop-action-group { display: flex; gap: 5px; align-items: center; }
+.crop-action-group { margin-left: 6px; border-left: 1px solid rgba(255,255,255,0.12); padding-left: 10px; }
+.ce-ratio-btn {
+  padding: 5px 10px; border-radius: 8px; border: none;
+  font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+  background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.65);
+  transition: all 0.15s;
+}
+.ce-ratio-btn.active { background: #8FAF8E; color: #fff; }
+.ce-ratio-btn:not(.active):hover { background: rgba(255,255,255,0.2); color: #fff; }
+.ce-cancel-btn {
+  padding: 6px 12px; border-radius: 8px; border: none;
+  font-size: 12px; cursor: pointer; font-family: inherit;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.75);
+  transition: background 0.15s;
+}
+.ce-cancel-btn:hover { background: rgba(255,255,255,0.22); }
+.ce-confirm-btn {
+  padding: 6px 14px; border-radius: 8px; border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  background: #8FAF8E; color: #fff; transition: opacity 0.15s;
+}
+.ce-confirm-btn:hover { opacity: 0.85; }
