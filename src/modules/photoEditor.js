@@ -132,6 +132,9 @@ export function openPhotoEditor(imgSrc) {
 
       draw()
 
+      const ac = new AbortController()
+      const signal = ac.signal
+
       // ── 이벤트 ──
       function onDown(e) {
         if (e.type === 'touchstart') e.preventDefault()
@@ -208,19 +211,19 @@ export function openPhotoEditor(imgSrc) {
         canvas.style.cursor = 'grab'
       }
 
-      canvas.addEventListener('mousedown',  onDown)
-      canvas.addEventListener('touchstart', onDown, { passive: false })
-      document.addEventListener('mousemove',  onMove)
-      document.addEventListener('mouseup',    onUp)
-      document.addEventListener('touchmove',  onMove, { passive: false })
-      document.addEventListener('touchend',   onUp)
+      canvas.addEventListener('mousedown',  onDown, { signal })
+      canvas.addEventListener('touchstart', onDown, { passive: false, signal })
+      document.addEventListener('mousemove',  onMove, { signal })
+      document.addEventListener('mouseup',    onUp, { signal })
+      document.addEventListener('touchmove',  onMove, { passive: false, signal })
+      document.addEventListener('touchend',   onUp, { signal })
 
       canvas.addEventListener('wheel', e => {
         e.preventDefault()
         scale = Math.min(5, Math.max(0.5, scale - e.deltaY * 0.002))
         overlay.querySelector('.zoom-slider').value = scale
         draw()
-      }, { passive: false })
+      }, { passive: false, signal })
 
       overlay.querySelector('.zoom-slider').addEventListener('input', e => {
         scale = parseFloat(e.target.value); draw()
@@ -249,20 +252,25 @@ export function openPhotoEditor(imgSrc) {
       overlay.querySelector('#pe-full').addEventListener('click', () => {
         crop = { x: 0, y: 0, w: D, h: D }
         draw()
-      })
+      }, { signal })
+
+      // ESC to cancel
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          resolve(null)
+          cleanup()
+        }
+      }, { signal })
 
       // ── 정리 ──
       function cleanup() {
-        document.removeEventListener('mousemove',  onMove)
-        document.removeEventListener('mouseup',    onUp)
-        document.removeEventListener('touchmove',  onMove)
-        document.removeEventListener('touchend',   onUp)
-        document.body.removeChild(overlay)
+        ac.abort()
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
       }
 
       overlay.querySelector('.editor-cancel-btn').addEventListener('click', () => {
         cleanup(); resolve(null)
-      })
+      }, { signal })
 
       overlay.querySelector('.editor-confirm-btn').addEventListener('click', () => {
         const { x: cx, y: cy, w: cw, h: ch } = crop

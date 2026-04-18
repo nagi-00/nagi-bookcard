@@ -7,10 +7,7 @@ import { openCropUI } from './modules/cropExport.js'
 import { searchBooks } from './modules/search.js'
 import { deriveColors, applyCssVars, pickColorWithEyeDropper } from './modules/colorSystem.js'
 import { exportToPng, exportToClipboard } from './modules/export.js'
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-}
+import { escapeHTML as esc } from './modules/util.js'
 
 // ── TTB 키 관리 ──
 const TTB_KEY_STORAGE = 'nagi_ttb_key'
@@ -48,6 +45,12 @@ document.getElementById('ttb-key-skip').addEventListener('click', () => {
 })
 document.getElementById('ttb-key-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('ttb-key-save').click()
+})
+// ESC: only allow dismissal when a TTB key already exists (so first-run users aren't softlocked out)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return
+  const overlay = document.getElementById('onboarding-overlay')
+  if (overlay && !overlay.classList.contains('hidden') && getTtbKey()) hideOnboarding()
 })
 if (!getTtbKey()) showOnboarding()
 
@@ -349,14 +352,14 @@ async function runSearch(q) {
     el.addEventListener('click', () => {
       const b = books[+el.dataset.idx]
       setState({
-        title: b.title,
-        author: b.author,
+        title: b.title || '',
+        author: b.author || '',
         publisher: b.publisher || '',
         description: b.description || '',
       })
-      document.getElementById('title-input').value = b.title
-      document.getElementById('author-input').value = b.author
-      if (b.publisher) document.getElementById('publisher-input').value = b.publisher
+      document.getElementById('title-input').value = b.title || ''
+      document.getElementById('author-input').value = b.author || ''
+      document.getElementById('publisher-input').value = b.publisher || ''
       if (b.cover) setBook(b.cover)
       results.classList.remove('open')
       document.getElementById('search-input').value = ''
@@ -381,11 +384,26 @@ document.addEventListener('click', e => {
 document.getElementById('title-input').addEventListener('input', e => setState({ title: e.target.value }))
 document.getElementById('author-input').addEventListener('input', e => setState({ author: e.target.value }))
 document.getElementById('publisher-input').addEventListener('input', e => setState({ publisher: e.target.value }))
-document.getElementById('pages-input').addEventListener('input', e => setState({ pages: e.target.value }))
+document.getElementById('pages-input').addEventListener('input', e => {
+  const raw = e.target.value
+  if (raw === '') { setState({ pages: '' }); return }
+  const n = Math.max(1, Math.min(99999, Math.floor(Number(raw))))
+  if (Number.isNaN(n)) return
+  if (String(n) !== raw) e.target.value = String(n)
+  setState({ pages: String(n) })
+})
 
-// 날짜
+// 날짜 (빈 값/잘못된 값은 무시, 기존 시·분·초 보존)
 document.getElementById('date-input').addEventListener('change', e => {
-  setState({ date: e.target.value ? new Date(e.target.value) : null })
+  const val = e.target.value
+  if (!val) return
+  const [y, m, d] = val.split('-').map(Number)
+  if (!y || !m || !d) return
+  const prev = state.date instanceof Date && !isNaN(state.date) ? state.date : new Date()
+  const next = new Date(prev)
+  next.setFullYear(y, m - 1, d)
+  if (isNaN(next)) return
+  setState({ date: next })
 })
 
 // 도서 표지 업로드 (단일)
@@ -518,6 +536,14 @@ document.getElementById('font-select').addEventListener('change', async e => {
 document.getElementById('local-font-search').addEventListener('input', e => {
   renderLocalFonts(_localFonts)
 })
+// Revert to previous preset if custom name left empty on blur
+document.getElementById('custom-font-input').addEventListener('blur', e => {
+  if (e.target.value.trim()) return
+  const sel = document.getElementById('font-select')
+  sel.value = 'modern'
+  e.target.style.display = 'none'
+  setState({ font: 'modern', customFont: '' })
+})
 
 document.getElementById('local-font-chip-clear').addEventListener('click', () => {
   document.getElementById('local-font-chip').style.display = 'none'
@@ -583,11 +609,11 @@ document.getElementById('text-color-picker').addEventListener('input', e => {
 
 // 내보내기 (크롭 UI 선택 후 저장)
 document.getElementById('save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('save-btn')
   const scene = previewInner.querySelector('.card-scene')
   if (!scene) return
   const cropRect = await openCropUI(scene)
   if (!cropRect) return
-  const btn = document.getElementById('save-btn')
   btn.textContent = 'Saving...'
   try {
     await exportToPng(scene, cropRect)
@@ -596,11 +622,11 @@ document.getElementById('save-btn').addEventListener('click', async () => {
   }
 })
 document.getElementById('clipboard-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('clipboard-btn')
   const scene = previewInner.querySelector('.card-scene')
   if (!scene) return
   const cropRect = await openCropUI(scene)
   if (!cropRect) return
-  const btn = document.getElementById('clipboard-btn')
   btn.textContent = 'Copying...'
   try {
     await exportToClipboard(scene, cropRect)

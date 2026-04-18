@@ -4,8 +4,6 @@ export const state = {
   title: 'The Little Prince',
   author: 'Antoine de Saint-Exupéry',
   date: new Date(),
-  cover: null,
-  userImage: null,
 
   // 선택 요소
   quote: 'What is essential is invisible to the eye.',

@@ -1,5 +1,6 @@
 // src/modules/card.js
 import { state } from '../state.js'
+import { escapeHTML } from './util.js'
 
 const FOLDER_MARGIN = 24
 
@@ -13,19 +14,13 @@ const CARD_REF_CANVAS = {
 }
 
 export function resetCoverOffset() {
-  state.books.forEach(b => { b.x = 0; b.y = 0 })
+  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0; b.scale = 1 })
 }
 
 export function resetCardOffset() {
   state.cardOffsetX = 0
   state.cardOffsetY = 0
   state.cardScale   = 1.0
-}
-
-function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 function formatDate(date) {
@@ -138,7 +133,7 @@ function getCardLayout(W, H) {
     return { portrait: true, fW, fH, fLeft, fTop, bookW, bookH, bookCX, bookCY, padTop, padSide: 22, padBottom: 18 }
   } else {
     const maxFH = refH - FOLDER_MARGIN * 2
-    const maxFW = Math.round(refW * (cardRatio === '1:1' ? 0.58 : 0.64))
+    const maxFW = Math.round(refW * 0.64)
     let fH = maxFH
     let fW = Math.round(fH * crW / crH)
     if (fW > maxFW) { fW = maxFW; fH = Math.round(fW * crH / crW) }
@@ -176,12 +171,14 @@ function buildBooksHTML(layout) {
     const bX = Math.round(bookCX + book.x - bW / 2)
     const bY = Math.round(bookCY + book.y - bH / 2)
 
-    const src    = book.src
-    const imgSt  = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
-    const imgBack  = src
-      ? `<img src="${src}" style="${imgSt}" alt="">`
-      : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
-    const imgFront = src ? `<img src="${src}" style="${imgSt}" alt="">` : ''
+    const src = book.src
+    const safeSrc = src ? escapeHTML(src) : ''
+    const isRemote = src && /^https?:/i.test(src)
+    const crossOrigin = isRemote ? ' crossorigin="anonymous" referrerpolicy="no-referrer"' : ''
+    const imgSt = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
+    const imgBack  = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">`
+                        : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
+    const imgFront = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">` : ''
 
     let frontExtra
     if (portrait) {
@@ -217,6 +214,12 @@ export function initCoverDrag(scene) {
   if (!scene) return
   const layout = scene.dataset.layout
   if (!layout) return
+
+  // Cancel any drag listeners from the previous render pass
+  if (scene._dragAC) scene._dragAC.abort()
+  const ac = new AbortController()
+  scene._dragAC = ac
+  const signal = ac.signal
 
   const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
   const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
@@ -284,6 +287,8 @@ export function initCoverDrag(scene) {
       if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
     }
 
+    let rotating = false
+
     function onDown(e) {
       if (e.touches && e.touches.length >= 2) {
         lastTouches = Array.from(e.touches)
@@ -292,13 +297,33 @@ export function initCoverDrag(scene) {
       }
       e.preventDefault()
       e.stopPropagation()
-      const p = pointerPos(e)
-      dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grabbing'))
-      document.addEventListener('mousemove', onMove)
-      document.addEventListener('mouseup',   onUp)
-      document.addEventListener('touchmove', onMove, { passive: false })
-      document.addEventListener('touchend',  onUp)
+
+      if (e.button === 2) {
+        // Right-click: rotate mode
+        rotating = true
+        const bW = +backEl.dataset.bw, bH = +backEl.dataset.bh
+        const bX = Math.round(baseCX + book.x - bW / 2)
+        const bY = Math.round(baseCY + book.y - bH / 2)
+        const sr = scene.getBoundingClientRect()
+        const s  = getScale()
+        const cx = sr.left + (bX + bW / 2) * s
+        const cy = sr.top  + (bY + bH / 2) * s
+        dragStart = {
+          cx, cy,
+          startRot:   book.rotation || 0,
+          startAngle: Math.atan2(e.clientY - cy, e.clientX - cx),
+        }
+      } else {
+        rotating = false
+        const p = pointerPos(e)
+        dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
+      }
+
+      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = rotating ? 'crosshair' : 'grabbing'))
+      document.addEventListener('mousemove',  onMove, { signal })
+      document.addEventListener('mouseup',    onUp,   { signal })
+      document.addEventListener('touchmove',  onMove, { passive: false, signal })
+      document.addEventListener('touchend',   onUp,   { signal })
     }
 
     function onMove(e) {
@@ -353,10 +378,10 @@ export function initCoverDrag(scene) {
       if (!el) return
       el.style.cursor = 'grab'
       el.style.pointerEvents = 'auto'   // card-group pointer-events:none 오버라이드
-      el.addEventListener('contextmenu', e => e.preventDefault())
-      el.addEventListener('mousedown',   onDown)
-      el.addEventListener('touchstart',  onDown, { passive: false })
-      el.addEventListener('wheel',       onWheel, { passive: false })
+      el.addEventListener('contextmenu', e => e.preventDefault(), { signal })
+      el.addEventListener('mousedown',   onDown, { signal })
+      el.addEventListener('touchstart',  onDown, { passive: false, signal })
+      el.addEventListener('wheel',       onWheel, { passive: false, signal })
     })
   })
 }
