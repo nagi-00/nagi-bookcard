@@ -6,10 +6,7 @@ import { openPhotoEditor } from './modules/photoEditor.js'
 import { searchBooks } from './modules/search.js'
 import { deriveColors, applyCssVars, pickColorWithEyeDropper } from './modules/colorSystem.js'
 import { exportToPng, exportToClipboard } from './modules/export.js'
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-}
+import { escapeHTML as esc } from './modules/util.js'
 
 // ── TTB 키 관리 ──
 const TTB_KEY_STORAGE = 'nagi_ttb_key'
@@ -42,6 +39,12 @@ document.getElementById('ttb-key-save').addEventListener('click', () => {
 document.getElementById('ttb-key-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('ttb-key-save').click()
 })
+// ESC: only allow dismissal when a TTB key already exists (so first-run users aren't softlocked out)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return
+  const overlay = document.getElementById('onboarding-overlay')
+  if (overlay && !overlay.classList.contains('hidden') && getTtbKey()) hideOnboarding()
+})
 if (!getTtbKey()) showOnboarding()
 
 // ── 패널 HTML 주입 ──
@@ -63,7 +66,7 @@ document.getElementById('panel').innerHTML = `
     <input id="title-input" class="text-input" type="text" placeholder="ᴛɪᴛʟᴇ *">
     <input id="author-input" class="text-input" type="text" placeholder="ᴀᴜᴛʜᴏʀ *">
     <input id="publisher-input" class="text-input" type="text" placeholder="ᴘᴜʙʟɪsʜᴇʀ">
-    <input id="pages-input" class="text-input" type="number" placeholder="ᴘᴀɢᴇs" min="1">
+    <input id="pages-input" class="text-input" type="number" placeholder="ᴘᴀɢᴇs" min="1" max="99999">
     <input id="date-input" class="text-input" type="date">
     <button id="cover-upload-btn"><svg height="24" width="24" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="#ffffff"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64Z"/></svg>ᴜᴘʟᴏᴀᴅ ᴍʏ ᴏᴡɴ</button>
     <input id="cover-file" type="file" accept="image/*" style="display:none" multiple>
@@ -246,14 +249,14 @@ async function runSearch(q) {
     el.addEventListener('click', () => {
       const b = books[+el.dataset.idx]
       setState({
-        title: b.title,
-        author: b.author,
+        title: b.title || '',
+        author: b.author || '',
         publisher: b.publisher || '',
         description: b.description || '',
       })
-      document.getElementById('title-input').value = b.title
-      document.getElementById('author-input').value = b.author
-      if (b.publisher) document.getElementById('publisher-input').value = b.publisher
+      document.getElementById('title-input').value = b.title || ''
+      document.getElementById('author-input').value = b.author || ''
+      document.getElementById('publisher-input').value = b.publisher || ''
       if (b.cover) addBook(b.cover)
       results.classList.remove('open')
       document.getElementById('search-input').value = ''
@@ -278,7 +281,14 @@ document.addEventListener('click', e => {
 document.getElementById('title-input').addEventListener('input', e => setState({ title: e.target.value }))
 document.getElementById('author-input').addEventListener('input', e => setState({ author: e.target.value }))
 document.getElementById('publisher-input').addEventListener('input', e => setState({ publisher: e.target.value }))
-document.getElementById('pages-input').addEventListener('input', e => setState({ pages: e.target.value }))
+document.getElementById('pages-input').addEventListener('input', e => {
+  const raw = e.target.value
+  if (raw === '') { setState({ pages: '' }); return }
+  const n = Math.max(1, Math.min(99999, Math.floor(Number(raw))))
+  if (Number.isNaN(n)) return
+  if (String(n) !== raw) e.target.value = String(n)
+  setState({ pages: String(n) })
+})
 
 // 날짜 (빈 값/잘못된 값은 무시, 기존 시·분·초 보존)
 document.getElementById('date-input').addEventListener('change', e => {
@@ -390,6 +400,7 @@ document.getElementById('font-select').addEventListener('change', e => {
   if (val === 'custom') {
     customInput.style.display = 'block'
     customInput.focus()
+    setState({ font: 'custom' })
   } else {
     customInput.style.display = 'none'
     setState({ font: val, customFont: '' })
@@ -397,6 +408,14 @@ document.getElementById('font-select').addEventListener('change', e => {
 })
 document.getElementById('custom-font-input').addEventListener('input', e => {
   setState({ customFont: e.target.value.trim() })
+})
+// Revert to previous preset if custom name left empty on blur
+document.getElementById('custom-font-input').addEventListener('blur', e => {
+  if (e.target.value.trim()) return
+  const sel = document.getElementById('font-select')
+  sel.value = 'modern'
+  e.target.style.display = 'none'
+  setState({ font: 'modern', customFont: '' })
 })
 
 // 테마

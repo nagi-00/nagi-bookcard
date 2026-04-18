@@ -4,8 +4,6 @@ export const state = {
   title: '',
   author: '',
   date: new Date(),
-  cover: null,        // URL string | null
-  userImage: null,    // base64 | null
 
   // 선택 요소
   quote: '',

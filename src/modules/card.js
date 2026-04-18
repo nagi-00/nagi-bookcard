@@ -1,5 +1,6 @@
 // src/modules/card.js
 import { state } from '../state.js'
+import { escapeHTML } from './util.js'
 
 const SIZES = {
   '9:16': [360, 640],
@@ -15,14 +16,6 @@ const BODY_OFFSET   = 26   // folder-body.top in CSS — 2px overlap with 28px t
 
 export function resetCoverOffset() {
   state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0; b.scale = 1 })
-}
-
-function escapeHTML(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 function isPortrait(ratio) { return PORTRAIT_RATIOS.has(ratio) }
@@ -117,10 +110,13 @@ function buildBooksHTML(W, H, layout, folderBodyTop, folderBodyLeft) {
     const bY = Math.round(baseCY + book.y - bH / 2)
 
     const src = book.src
+    const safeSrc = src ? escapeHTML(src) : ''
+    const isRemote = src && /^https?:/i.test(src)
+    const crossOrigin = isRemote ? ' crossorigin="anonymous" referrerpolicy="no-referrer"' : ''
     const imgSt = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
-    const imgBack  = src ? `<img src="${src}" style="${imgSt}" alt="">`
+    const imgBack  = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">`
                         : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
-    const imgFront = src ? `<img src="${src}" style="${imgSt}" alt="">` : ''
+    const imgFront = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">` : ''
 
     let frontExtra
     if (layout === 'portrait') {
@@ -216,6 +212,12 @@ export function initCoverDrag(scene) {
   const layout = scene.dataset.layout
   if (!layout) return
 
+  // Cancel any drag listeners from the previous render pass
+  if (scene._dragAC) scene._dragAC.abort()
+  const ac = new AbortController()
+  scene._dragAC = ac
+  const signal = ac.signal
+
   const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
   const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
   const W = +scene.dataset.W || scene.offsetWidth
@@ -310,10 +312,10 @@ export function initCoverDrag(scene) {
       }
 
       ;[backEl, frontEl].forEach(el => el && (el.style.cursor = rotating ? 'crosshair' : 'grabbing'))
-      document.addEventListener('mousemove',  onMove)
-      document.addEventListener('mouseup',    onUp)
-      document.addEventListener('touchmove',  onMove, { passive: false })
-      document.addEventListener('touchend',   onUp)
+      document.addEventListener('mousemove',  onMove, { signal })
+      document.addEventListener('mouseup',    onUp,   { signal })
+      document.addEventListener('touchmove',  onMove, { passive: false, signal })
+      document.addEventListener('touchend',   onUp,   { signal })
     }
 
     function onMove(e) {
@@ -396,10 +398,10 @@ export function initCoverDrag(scene) {
     ;[backEl, frontEl].forEach(el => {
       if (!el) return
       el.style.cursor = 'grab'
-      el.addEventListener('contextmenu', e => e.preventDefault())
-      el.addEventListener('mousedown',   onDown)
-      el.addEventListener('touchstart',  onDown, { passive: false })
-      el.addEventListener('wheel',       onWheel, { passive: false })
+      el.addEventListener('contextmenu', e => e.preventDefault(), { signal })
+      el.addEventListener('mousedown',   onDown, { signal })
+      el.addEventListener('touchstart',  onDown, { passive: false, signal })
+      el.addEventListener('wheel',       onWheel, { passive: false, signal })
     })
   })
 }

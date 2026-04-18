@@ -72,22 +72,25 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
 
       draw()
 
+      const ac = new AbortController()
+      const signal = ac.signal
+
       // Mouse drag
       let dragStart = null
       canvas.addEventListener('mousedown', e => {
         dragStart = { x: e.clientX - offsetX, y: e.clientY - offsetY }
         canvas.style.cursor = 'grabbing'
-      })
+      }, { signal })
       document.addEventListener('mousemove', e => {
         if (!dragStart) return
         offsetX = e.clientX - dragStart.x
         offsetY = e.clientY - dragStart.y
         draw()
-      })
+      }, { signal })
       document.addEventListener('mouseup', () => {
         dragStart = null
         canvas.style.cursor = 'grab'
-      })
+      }, { signal })
 
       // Touch drag
       let touchStart = null
@@ -95,7 +98,7 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
         const t = e.touches[0]
         touchStart = { x: t.clientX - offsetX, y: t.clientY - offsetY }
         e.preventDefault()
-      }, { passive: false })
+      }, { passive: false, signal })
       canvas.addEventListener('touchmove', e => {
         if (!touchStart) return
         const t = e.touches[0]
@@ -103,8 +106,8 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
         offsetY = t.clientY - touchStart.y
         draw()
         e.preventDefault()
-      }, { passive: false })
-      canvas.addEventListener('touchend', () => { touchStart = null })
+      }, { passive: false, signal })
+      canvas.addEventListener('touchend', () => { touchStart = null }, { signal })
 
       // Wheel zoom
       canvas.addEventListener('wheel', e => {
@@ -112,13 +115,13 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
         scale = Math.min(5, Math.max(1, scale - e.deltaY * 0.002))
         overlay.querySelector('.zoom-slider').value = scale
         draw()
-      }, { passive: false })
+      }, { passive: false, signal })
 
       // Slider zoom
       overlay.querySelector('.zoom-slider').addEventListener('input', e => {
         scale = parseFloat(e.target.value)
         draw()
-      })
+      }, { signal })
 
       // Rotate buttons
       overlay.querySelectorAll('.rotate-btn').forEach(btn => {
@@ -126,11 +129,20 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
           rotation = (rotation + +btn.dataset.dir * 90 + 360) % 360
           offsetX = 0; offsetY = 0
           draw()
-        })
+        }, { signal })
       })
 
+      // ESC to cancel
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          resolve(null)
+          cleanup()
+        }
+      }, { signal })
+
       function cleanup() {
-        document.body.removeChild(overlay)
+        ac.abort()
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay)
       }
 
       overlay.querySelector('.editor-confirm-btn').addEventListener('click', () => {
@@ -150,12 +162,12 @@ export function openPhotoEditor(imgSrc, ratioW, ratioH) {
         offCtx.restore()
         resolve(offCanvas.toDataURL('image/jpeg', 0.92))
         cleanup()
-      })
+      }, { signal })
 
       overlay.querySelector('.editor-cancel-btn').addEventListener('click', () => {
         resolve(null)
         cleanup()
-      })
+      }, { signal })
 
       canvas.style.cursor = 'grab'
     }
