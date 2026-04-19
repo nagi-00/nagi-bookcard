@@ -2,7 +2,7 @@
 import { state } from '../state.js'
 import { escapeHTML } from './util.js'
 
-const FOLDER_MARGIN = 24
+const CARD_MARGIN = 24
 
 // 카드 레이아웃은 이 기준 캔버스 크기를 기반으로 계산 (screenRatio 변경에 독립적)
 const CARD_REF_CANVAS = {
@@ -11,10 +11,6 @@ const CARD_REF_CANVAS = {
   '1:1':  [360, 360],
   '4:3':  [480, 360],
   '16:9': [640, 360],
-}
-
-export function resetCoverOffset() {
-  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0; b.scale = 1 })
 }
 
 export function resetCardOffset() {
@@ -59,7 +55,7 @@ function buildStarsHTML(rating) {
   ).join('')
 }
 
-function buildFolderContentHTML() {
+function buildCardContentHTML() {
   const { title, author, quote, quoteEnabled, rating, ratingEnabled, publisher, pages, dateEnabled } = state
   const hasDate = dateEnabled !== false && state.date
   const rawDate = hasDate
@@ -76,14 +72,14 @@ function buildFolderContentHTML() {
   const dateTag = date ? formatDateTag(date) : ''
 
   return `
-    <div class="folder-content-inner">
+    <div class="card-content-inner">
       <div class="info-wrap">
         ${date ? buildDateRowHTML(date) : ''}
         <div class="book-title">${escapeHTML(title) || 'Title'}</div>
         <div class="book-author">${escapeHTML(author) || 'Author'}</div>
         ${ratingEnabled ? `<div class="star-row">${buildStarsHTML(rating)}</div>` : ''}
         ${quoteEnabled && quote ? `<div class="quote-block">${escapeHTML(quote)}</div>` : ''}
-        <div class="folder-bottom" style="margin-top:auto;">
+        <div class="card-bottom" style="margin-top:auto;">
           <div class="bottom-right">
             ${pubMeta ? `<span class="pub-label">${pubMeta}</span>` : ''}
             ${date ? `<span class="time-label">${timeStr} · ${dateTag}</span>` : ''}
@@ -99,11 +95,11 @@ function getCardLayout(W, H) {
   const [crW, crH] = cardRatio.split(':').map(Number)
   const portrait = crH >= crW
 
-  // 폴더/북 크기는 기준 캔버스 기준으로 고정 → screenRatio 변경 시 크기 불변
+  // 카드/북 크기는 기준 캔버스 기준으로 고정 → screenRatio 변경 시 크기 불변
   const [refW, refH] = CARD_REF_CANVAS[cardRatio] || [360, 640]
 
   if (portrait) {
-    const maxFW = refW - FOLDER_MARGIN * 2
+    const maxFW = refW - CARD_MARGIN * 2
     const maxFH = Math.round(refH * 0.70)
     let fW = maxFW
     let fH = Math.round(fW * crH / crW)
@@ -113,9 +109,9 @@ function getCardLayout(W, H) {
     let bookH = Math.round(bookW * 1.42)
 
     // 캔버스가 너무 작으면 비율 유지하며 축소
-    const needH = fH + FOLDER_MARGIN + bookH * 0.76
-    const needW = fW + FOLDER_MARGIN * 2
-    const sf = Math.min(1, (W - FOLDER_MARGIN * 2) / needW, H / needH)
+    const needH = fH + CARD_MARGIN + bookH * 0.76
+    const needW = fW + CARD_MARGIN * 2
+    const sf = Math.min(1, (W - CARD_MARGIN * 2) / needW, H / needH)
     if (sf < 1) {
       fW = Math.round(fW * sf); fH = Math.round(fH * sf)
       bookW = Math.round(bookW * sf); bookH = Math.round(bookH * sf)
@@ -132,7 +128,7 @@ function getCardLayout(W, H) {
 
     return { portrait: true, fW, fH, fLeft, fTop, bookW, bookH, bookCX, bookCY, padTop, padSide: 22, padBottom: 18 }
   } else {
-    const maxFH = refH - FOLDER_MARGIN * 2
+    const maxFH = refH - CARD_MARGIN * 2
     const maxFW = Math.round(refW * 0.64)
     let fH = maxFH
     let fW = Math.round(fH * crW / crH)
@@ -142,16 +138,19 @@ function getCardLayout(W, H) {
     let bookW = Math.round(bookH / 1.42)
 
     // 캔버스가 너무 작으면 축소
-    const needH = fH + FOLDER_MARGIN * 2
-    const needW = fW + FOLDER_MARGIN + bookW * 0.80
+    const needH = fH + CARD_MARGIN * 2
+    const needW = fW + CARD_MARGIN + bookW * 0.80
     const sf = Math.min(1, H / needH, W / needW)
     if (sf < 1) {
       fW = Math.round(fW * sf); fH = Math.round(fH * sf)
       bookW = Math.round(bookW * sf); bookH = Math.round(bookH * sf)
     }
 
+    // 카드 + 책 구성 전체를 캔버스 중앙에 배치
+    // 책 중심은 fLeft - bookW*0.20, 책 좌측 = fLeft - bookW*0.70
+    // 구성 폭 = (fW + bookW*0.70), 중앙 정렬하려면 fLeft = (W - fW + bookW*0.70)/2
     const fTop  = Math.round((H - fH) / 2)
-    const fLeft = W - fW - FOLDER_MARGIN
+    const fLeft = Math.round((W - fW + bookW * 0.70) / 2)
     const bookCX = fLeft - Math.round(bookW * 0.20)
     const bookCY = fTop  + Math.round(fH / 2)
     const padTop = { '16:9': 14, '4:3': 18 }[cardRatio] ?? 16
@@ -162,8 +161,8 @@ function getCardLayout(W, H) {
 
 function buildBooksHTML(layout) {
   const { portrait, bookCX, bookCY, bookW, bookH, fTop, fLeft } = layout
-  const folderBodyTop  = portrait ? fTop : 0
-  const folderBodyLeft = portrait ? 0    : fLeft
+  const cardBodyTop  = portrait ? fTop : 0
+  const cardBodyLeft = portrait ? 0    : fLeft
 
   return state.books.map(book => {
     const bW = Math.round(bookW * book.scale)
@@ -209,8 +208,8 @@ export function initCoverDrag(scene) {
   scene._dragAC = ac
   const signal = ac.signal
 
-  const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
-  const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
+  const cardBodyTop  = +scene.dataset.cardBodyTop  || 0
+  const cardBodyLeft = +scene.dataset.cardBodyLeft || 0
 
   function getScale() {
     const rect = scene.getBoundingClientRect()
@@ -357,9 +356,9 @@ export function initCoverDrag(scene) {
 
 // ── 카드(글래스 카드) 드래그 + 줌 ──
 export function initCardDrag(scene) {
-  const folderWrapper = scene.querySelector('.folder-wrapper')
+  const cardWrapper = scene.querySelector('.card-wrapper')
   const handle        = scene.querySelector('.card-drag-handle')
-  if (!folderWrapper || !handle) return
+  if (!cardWrapper || !handle) return
 
   function getPreviewScale() {
     const rect = scene.getBoundingClientRect()
@@ -370,7 +369,7 @@ export function initCardDrag(scene) {
     const ox = state.cardOffsetX || 0
     const oy = state.cardOffsetY || 0
     const s  = state.cardScale   || 1
-    folderWrapper.style.transform = `translate(${ox}px,${oy}px) scale(${s})`
+    cardWrapper.style.transform = `translate(${ox}px,${oy}px) scale(${s})`
   }
 
   let dragStart = null
@@ -434,22 +433,14 @@ export function renderCard(container, W, H) {
     scene.style.removeProperty('--font-ko')
   }
 
-  if (state.bgPreset === 'image' && state.bgImage) {
-    scene.classList.add('bg-image')
-    scene.style.backgroundImage = `url(${state.bgImage})`
-    scene.style.backgroundColor = ''
-  } else {
-    scene.classList.remove('bg-image')
-    scene.style.backgroundImage = ''
-    scene.style.backgroundColor = state.bgColor
-  }
+  scene.style.backgroundColor = state.bgColor
 
   const layout = getCardLayout(W, H)
   const { portrait, fW, fH, fLeft, fTop, padTop, padSide, padBottom } = layout
 
   scene.dataset.layout         = portrait ? 'portrait' : 'landscape'
-  scene.dataset.folderBodyTop  = fTop
-  scene.dataset.folderBodyLeft = fLeft
+  scene.dataset.cardBodyTop  = fTop
+  scene.dataset.cardBodyLeft = fLeft
   scene.dataset.W = W
   scene.dataset.H = H
 
@@ -457,21 +448,16 @@ export function renderCard(container, W, H) {
   const offsetY   = state.cardOffsetY || 0
   const cardScale = state.cardScale   || 1
 
-  // 책 표지와 폴더를 분리 — 폴더만 folder-wrapper 안에, 책 표지는 scene 직속
-  const bgCtrlHTML = (state.bgPreset === 'image' && state.bgImage) ? `
-    <button class="bg-ctrl bg-edit-btn preview-only" title="배경 편집">✏</button>
-    <button class="bg-ctrl bg-del-btn preview-only" title="배경 제거">✕</button>` : ''
-
+  // 책 표지와 카드를 분리 — 카드만 card-wrapper 안에, 책 표지는 scene 직속
   scene.innerHTML = `
     <div class="card-bg-overlay"></div>
-    ${bgCtrlHTML}
     ${buildBooksHTML(layout)}
-    <div class="folder-wrapper" style="position:absolute;inset:0;z-index:3;pointer-events:none;transform:translate(${offsetX}px,${offsetY}px) scale(${cardScale});transform-origin:50% 50%;">
-      <div class="folder-layer" style="top:${fTop}px;left:${fLeft}px;width:${fW}px;height:${fH}px;">
-        <div class="folder-body">
+    <div class="card-wrapper" style="position:absolute;inset:0;z-index:3;pointer-events:none;transform:translate(${offsetX}px,${offsetY}px) scale(${cardScale});transform-origin:50% 50%;">
+      <div class="card-layer" style="top:${fTop}px;left:${fLeft}px;width:${fW}px;height:${fH}px;">
+        <div class="card-body">
           <div class="card-glass"></div>
-          <div class="folder-content" style="padding:${padTop}px ${padSide}px ${padBottom}px ${padSide}px;">
-            ${buildFolderContentHTML()}
+          <div class="card-content" style="padding:${padTop}px ${padSide}px ${padBottom}px ${padSide}px;">
+            ${buildCardContentHTML()}
           </div>
         </div>
         <div class="card-drag-handle" style="position:absolute;inset:0;z-index:10;cursor:grab;pointer-events:auto;"></div>

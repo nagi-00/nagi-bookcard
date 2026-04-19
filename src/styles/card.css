@@ -21,11 +21,6 @@
   font-family: var(--font-ko);
 }
 
-.card-scene.bg-image {
-  background-size: cover;
-  background-position: center;
-}
-
 /* ── 레이어 1: 배경 그라디언트 오버레이 ── */
 .card-bg-overlay {
   position: absolute;
@@ -35,7 +30,7 @@
   pointer-events: none;
 }
 
-/* ── 레이어 2: 책 표지 전체 (폴더 뒤 = frosted) ── */
+/* ── 레이어 2: 책 표지 전체 (카드 뒤 = frosted) ── */
 .cover-back {
   position: absolute;
   z-index: 2;
@@ -48,8 +43,8 @@
   object-fit: cover; display: block;
 }
 
-/* ── 레이어 3: SVG 폴더 + 유리 ── */
-.folder-layer {
+/* ── 레이어 3: SVG 카드 + 유리 ── */
+.card-layer {
   position: absolute;
   z-index: 3;
   pointer-events: none;
@@ -73,8 +68,8 @@
   pointer-events: none;
 }
 
-/* 폴더 탭 */
-.folder-tab {
+/* 카드 탭 */
+.card-tab {
   position: absolute;
   top: 0; left: 0;
   height: 28px;
@@ -90,7 +85,7 @@
   z-index: 4;
   pointer-events: auto;
 }
-.folder-tab-label {
+.card-tab-label {
   font-size: 8px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--color-text-sub);
@@ -100,7 +95,7 @@
 }
 
 /* 카드 바디 (탭 없이 전체 라운드) */
-.folder-body {
+.card-body {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   border-radius: 16px;
@@ -108,20 +103,20 @@
   pointer-events: none;
 }
 
-/* 폴더 내부 콘텐츠 */
-.folder-content {
+/* 카드 내부 콘텐츠 */
+.card-content {
   position: absolute;
   inset: 0;
   z-index: 4;
   display: flex; flex-direction: column;
   pointer-events: none;
 }
-.folder-content-inner {
+.card-content-inner {
   flex: 1; min-height: 0;
   display: flex; flex-direction: column;
 }
 
-.folder-arrow {
+.card-arrow {
   position: absolute;
   top: 18px; right: 16px;
   font-size: 14px; color: var(--color-text-sub);
@@ -129,7 +124,7 @@
   font-family: var(--font-en);
 }
 
-/* ── 레이어 4: 책 표지 상단 (폴더 앞 = 선명) ── */
+/* ── 레이어 4: 책 표지 상단 (카드 앞 = 선명) ── */
 .cover-front {
   position: absolute;
   z-index: 5;
@@ -210,7 +205,7 @@
   -webkit-box-orient: vertical;
 }
 
-.folder-bottom {
+.card-bottom {
   display: flex; align-items: flex-end; justify-content: flex-end;
   flex-wrap: wrap; gap: 4px;
   border-top: 1px solid rgba(0,0,0,0.06);
@@ -258,30 +253,12 @@
 .book-edit-btn { left: 5px; }
 .book-del-btn  { right: 5px; }
 
-.bg-ctrl {
-  position: absolute;
-  top: 8px;
-  z-index: 8;
-  width: 24px; height: 24px;
-  border: none; border-radius: 50%;
-  background: rgba(0,0,0,0.40);
-  color: #fff;
-  font-size: 11px; line-height: 1;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s;
-  pointer-events: auto;
-}
-.bg-ctrl:hover { background: rgba(0,0,0,0.65); }
-.bg-edit-btn { left: 8px; }
-.bg-del-btn  { right: 8px; }
-
 /* ── 다크 테마 오버라이드 ── */
 [data-theme="dark"] .card-glass,
-[data-theme="dark"] .folder-tab {
+[data-theme="dark"] .card-tab {
   border-color: rgba(255,255,255,0.12);
 }
-[data-theme="dark"] .folder-bottom {
+[data-theme="dark"] .card-bottom {
   border-top-color: rgba(255,255,255,0.07);
 }
 

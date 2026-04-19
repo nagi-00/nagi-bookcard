@@ -129,8 +129,6 @@ document.getElementById('panel').innerHTML = `
       <div class="bg-swatch" data-bg-preset="gray" style="background:#9E9A94" title="Mouse"></div>
       <div class="bg-swatch" data-bg-preset="black" style="background:#1A1A1A" title="Blank"></div>
       <input id="bg-color-input" type="color" value="#F0EBE3" title="Custom">
-      <button id="bg-image-btn" class="bg-image-btn">Upload image</button>
-      <input id="bg-file" type="file" accept="image/*" style="display:none">
     </div>
   </div>
 
@@ -288,27 +286,6 @@ function initPreviewControls(scene) {
     })
   })
 
-  // 배경 편집 (✏) → 현재 bgImage를 photoEditor로 재편집
-  const bgEditBtn = scene.querySelector('.bg-edit-btn')
-  if (bgEditBtn) {
-    bgEditBtn.addEventListener('click', async e => {
-      e.stopPropagation()
-      if (!state.bgImage) return
-      const result = await openPhotoEditor(state.bgImage)
-      if (result) setState({ bgPreset: 'image', bgImage: result })
-    })
-  }
-
-  // 배경 삭제 (✕)
-  const bgDelBtn = scene.querySelector('.bg-del-btn')
-  if (bgDelBtn) {
-    bgDelBtn.addEventListener('click', e => {
-      e.stopPropagation()
-      setState({ bgPreset: 'beige', bgColor: '#F0EBE3', bgImage: null })
-      document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('active'))
-      document.querySelector('.bg-swatch[data-bg-preset="beige"]')?.classList.add('active')
-    })
-  }
 }
 
 // resize 시 debounce 후 재렌더링
@@ -472,23 +449,11 @@ document.querySelectorAll('.bg-swatch').forEach(el => {
     const newTextColorHex = BG_DEFAULT_TEXT[preset] || state.textColorHex
     const picker = document.getElementById('text-color-picker')
     if (picker) picker.value = newTextColorHex
-    setState({ bgPreset: preset, bgColor: BG_PRESETS[preset], bgImage: null, textColorHex: newTextColorHex })
+    setState({ bgPreset: preset, bgColor: BG_PRESETS[preset], textColorHex: newTextColorHex })
   })
 })
 document.getElementById('bg-color-input').addEventListener('input', e => {
-  setState({ bgPreset: 'custom', bgColor: e.target.value, bgImage: null })
-})
-document.getElementById('bg-image-btn').addEventListener('click', () => {
-  document.getElementById('bg-file').click()
-})
-document.getElementById('bg-file').addEventListener('change', e => {
-  const file = e.target.files[0]; if (!file) return
-  const reader = new FileReader()
-  reader.onload = async ev => {
-    const result = await openPhotoEditor(ev.target.result)
-    if (result) setState({ bgPreset: 'image', bgImage: result })
-  }
-  reader.readAsDataURL(file)
+  setState({ bgPreset: 'custom', bgColor: e.target.value })
 })
 
 // 액센트 컬러

@@ -9,7 +9,7 @@ const PNG_OPTIONS = {
 
 // backdrop-filter는 html-to-image가 캡처 못함 → canvas blur로 구워서 대체
 async function bakeGlassEffect(cardScene) {
-  const glassEls = [...cardScene.querySelectorAll('.card-glass, .folder-tab')]
+  const glassEls = [...cardScene.querySelectorAll('.card-glass, .card-tab')]
   if (!glassEls.length) return () => {}
 
   const W = cardScene.offsetWidth

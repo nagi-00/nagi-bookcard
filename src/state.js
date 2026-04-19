@@ -24,7 +24,6 @@ export const state = {
   // 배경
   bgPreset: 'beige',
   bgColor: '#F0EBE3',
-  bgImage: null,
 
   // 책 정보
   publisher: '',
