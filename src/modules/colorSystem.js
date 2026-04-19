@@ -31,36 +31,41 @@ export function hslToHex(h, s, l) {
   return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`
 }
 
-export function deriveColors(accentHex, theme) {
-  const [h, s] = hexToHsl(accentHex)
+export function deriveColors(accentHex, textColorHex, bgHex = '#F0EBE3') {
+  const [h, s]    = hexToHsl(accentHex)
+  const [th, ts, tl] = hexToHsl(textColorHex)
+  const [,, bgL] = hexToHsl(bgHex)
 
-  if (theme === 'light') {
-    const bg    = hslToHex(h, Math.max(s - 10, 5), 93)
-    const glass = `rgba(245,241,235,0.82)`
-    const text  = hslToHex(h, 20, 14)
-    const textSub = hslToHex(h, 10, 52)
-    const accent  = accentHex
-    const sub   = hslToHex(h, Math.min(s + 5, 60), 80)
-    return { bg, glass, text, textSub, accent, sub }
-  } else {
-    const bg    = hslToHex(h, Math.min(s, 20), 12)
-    const glass = `rgba(18,22,38,0.86)`
-    const text  = hslToHex(h, 10, 90)
-    const textSub = hslToHex(h, 8, 55)
-    const accent  = accentHex
-    const sub   = hslToHex(h, Math.max(s - 10, 5), 30)
-    return { bg, glass, text, textSub, accent, sub }
-  }
+  // textSub: 텍스트 색 기준으로 밝기 조정해 muted 느낌
+  const textSubL = tl > 50
+    ? Math.max(tl - 22, 35)   // 밝은 글자 → 약간 어둡게
+    : Math.min(tl + 22, 65)   // 어두운 글자 → 약간 밝게
+  const textSub = hslToHex(th, Math.max(ts - 5, 0), textSubL)
+
+  // sub: 배경색/플레이스홀더용 — 텍스트 밝기 기준
+  const sub = tl > 50
+    ? hslToHex(h, Math.max(s - 10, 5), 28)
+    : hslToHex(h, Math.min(s + 5, 60), 80)
+
+  const [,, al] = hexToHsl(accentHex)
+  const accentContrast = al > 58 ? '#2C2825' : '#FFFFFF'
+
+  // 날짜 텍스트: 배경과 글자색이 동시에 밝으면 강제로 어두운 색 사용
+  const dateText = (tl > 75 && bgL > 60)
+    ? hslToHex(th, Math.min(ts + 5, 30), 20)
+    : textColorHex
+
+  return { text: textColorHex, dateText, textSub, accent: accentHex, sub, accentContrast }
 }
 
 export function applyCssVars(colors) {
   const root = document.documentElement
-  root.style.setProperty('--color-bg', colors.bg)
-  root.style.setProperty('--color-glass', colors.glass)
-  root.style.setProperty('--color-text', colors.text)
-  root.style.setProperty('--color-text-sub', colors.textSub)
-  root.style.setProperty('--color-accent', colors.accent)
-  root.style.setProperty('--color-sub', colors.sub)
+  root.style.setProperty('--color-text',      colors.text)
+  root.style.setProperty('--color-text-sub',  colors.textSub)
+  root.style.setProperty('--color-date-text', colors.dateText || colors.text)
+  root.style.setProperty('--color-accent',          colors.accent)
+  root.style.setProperty('--color-accent-contrast', colors.accentContrast)
+  root.style.setProperty('--color-sub',       colors.sub)
 }
 
 export async function pickColorWithEyeDropper() {

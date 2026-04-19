@@ -2,23 +2,22 @@
 import { state } from '../state.js'
 import { escapeHTML } from './util.js'
 
-const SIZES = {
+const CARD_MARGIN = 24
+
+// 카드 레이아웃은 이 기준 캔버스 크기를 기반으로 계산 (screenRatio 변경에 독립적)
+const CARD_REF_CANVAS = {
   '9:16': [360, 640],
-  '3:4':  [420, 560],
-  '1:1':  [480, 480],
-  '4:3':  [560, 420],
+  '3:4':  [360, 480],
+  '1:1':  [360, 360],
+  '4:3':  [480, 360],
   '16:9': [640, 360],
 }
 
-const PORTRAIT_RATIOS = new Set(['9:16', '3:4'])
-const FOLDER_MARGIN = 24   // card edge padding
-const BODY_OFFSET   = 26   // folder-body.top in CSS — 2px overlap with 28px tab hides junction
-
-export function resetCoverOffset() {
-  state.books.forEach(b => { b.x = 0; b.y = 0; b.rotation = 0; b.scale = 1 })
+export function resetCardOffset() {
+  state.cardOffsetX = 0
+  state.cardOffsetY = 0
+  state.cardScale   = 1.0
 }
-
-function isPortrait(ratio) { return PORTRAIT_RATIOS.has(ratio) }
 
 function formatDate(date) {
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
@@ -56,58 +55,120 @@ function buildStarsHTML(rating) {
   ).join('')
 }
 
-function buildFolderContentHTML() {
-  const { title, author, quote, quoteEnabled, rating, ratingEnabled, publisher, pages } = state
-  const raw = state.date instanceof Date ? state.date : new Date(state.date)
-  const date = isNaN(raw) ? new Date() : raw
-  const dateTag = formatDateTag(date)
-  const timeStr = formatTime(date)
+function buildCardContentHTML() {
+  const { title, author, quote, quoteEnabled, rating, ratingEnabled, publisher, pages, dateEnabled } = state
+  const hasDate = dateEnabled !== false && state.date
+  const rawDate = hasDate
+    ? (state.date instanceof Date ? state.date : new Date(state.date))
+    : null
+  const date = rawDate && !isNaN(rawDate.getTime()) ? rawDate : null
 
   const pubMeta = [
     publisher ? escapeHTML(publisher) : '',
-    pages    ? escapeHTML(String(pages)) + 'p' : '',
+    pages     ? escapeHTML(String(pages)) + 'p' : '',
   ].filter(Boolean).join(' · ')
 
+  const timeStr = date ? formatTime(date) : ''
+  const dateTag = date ? formatDateTag(date) : ''
+
   return `
-    <div class="folder-content-inner">
+    <div class="card-content-inner">
       <div class="info-wrap">
-        ${buildDateRowHTML(date)}
-        <div class="book-title">${escapeHTML(title) || 'ᴛɪᴛʟᴇ'}</div>
-        <div class="book-author">${escapeHTML(author) || 'ᴀᴜᴛʜᴏʀ'}</div>
+        ${date ? buildDateRowHTML(date) : ''}
+        <div class="book-title">${escapeHTML(title) || 'Title'}</div>
+        <div class="book-author">${escapeHTML(author) || 'Author'}</div>
         ${ratingEnabled ? `<div class="star-row">${buildStarsHTML(rating)}</div>` : ''}
         ${quoteEnabled && quote ? `<div class="quote-block">${escapeHTML(quote)}</div>` : ''}
-        <div class="folder-bottom" style="margin-top:auto;">
-          <span class="brand-label">nagi</span>
+        <div class="card-bottom" style="margin-top:auto;">
           <div class="bottom-right">
             ${pubMeta ? `<span class="pub-label">${pubMeta}</span>` : ''}
-            <span class="time-label">${timeStr} · ${dateTag}</span>
+            ${date ? `<span class="time-label">${timeStr} · ${dateTag}</span>` : ''}
           </div>
         </div>
       </div>
     </div>`
 }
 
-// Build back + front pair for every book
-function buildBooksHTML(W, H, layout, folderBodyTop, folderBodyLeft) {
-  return state.books.map(book => {
-    let baseW, baseH, baseCX, baseCY
+// ── 카드 레이아웃 계산 (cardRatio 기준, screenRatio와 독립) ──
+function getCardLayout(W, H) {
+  const cardRatio = state.cardRatio || '9:16'
+  const [crW, crH] = cardRatio.split(':').map(Number)
+  const portrait = crH >= crW
 
-    if (layout === 'portrait') {
-      baseW = Math.round(W * 0.30)
-      baseH = Math.round(baseW * 1.42)
-      baseCX = Math.round(W / 2)
-      baseCY = folderBodyTop - Math.round(baseH * 0.05)
-    } else {
-      baseH = Math.round(H * 0.62)
-      baseW = Math.round(baseH / 1.42)
-      baseCX = folderBodyLeft + Math.round(baseW * 0.05)
-      baseCY = Math.round(H / 2)
+  // 카드/북 크기는 기준 캔버스 기준으로 고정 → screenRatio 변경 시 크기 불변
+  const [refW, refH] = CARD_REF_CANVAS[cardRatio] || [360, 640]
+
+  if (portrait) {
+    const maxFW = refW - CARD_MARGIN * 2
+    const maxFH = Math.round(refH * 0.70)
+    let fW = maxFW
+    let fH = Math.round(fW * crH / crW)
+    if (fH > maxFH) { fH = maxFH; fW = Math.round(fH * crW / crH) }
+    fW = Math.round(fW); fH = Math.round(fH)
+    let bookW = Math.round(fW * 0.30)
+    let bookH = Math.round(bookW * 1.42)
+
+    // 캔버스가 너무 작으면 비율 유지하며 축소
+    const needH = fH + CARD_MARGIN + bookH * 0.76
+    const needW = fW + CARD_MARGIN * 2
+    const sf = Math.min(1, (W - CARD_MARGIN * 2) / needW, H / needH)
+    if (sf < 1) {
+      fW = Math.round(fW * sf); fH = Math.round(fH * sf)
+      bookW = Math.round(bookW * sf); bookH = Math.round(bookH * sf)
     }
 
-    const bW = Math.round(baseW * book.scale)
-    const bH = Math.round(baseH * book.scale)
-    const bX = Math.round(baseCX + book.x - bW / 2)
-    const bY = Math.round(baseCY + book.y - bH / 2)
+    const fLeft = Math.round((W - fW) / 2)
+    const overlapH = Math.round(bookH * 0.76)
+    const compositionH = fH + overlapH
+    const compositionTop = Math.max(8, Math.round((H - compositionH) / 2))
+    const fTop = compositionTop + overlapH
+    const bookCX = fLeft + Math.round(fW / 2)
+    const bookCY = fTop  - Math.round(bookH * 0.26)
+    const padTop = Math.round(bookH * 0.26 + 4)
+
+    return { portrait: true, fW, fH, fLeft, fTop, bookW, bookH, bookCX, bookCY, padTop, padSide: 22, padBottom: 18 }
+  } else {
+    const maxFH = refH - CARD_MARGIN * 2
+    const maxFW = Math.round(refW * 0.64)
+    let fH = maxFH
+    let fW = Math.round(fH * crW / crH)
+    if (fW > maxFW) { fW = maxFW; fH = Math.round(fW * crH / crW) }
+    fW = Math.round(fW); fH = Math.round(fH)
+    let bookH = Math.round(fH * 0.60)
+    let bookW = Math.round(bookH / 1.42)
+
+    // 캔버스가 너무 작으면 축소
+    const needH = fH + CARD_MARGIN * 2
+    const needW = fW + CARD_MARGIN + bookW * 0.80
+    const sf = Math.min(1, H / needH, W / needW)
+    if (sf < 1) {
+      fW = Math.round(fW * sf); fH = Math.round(fH * sf)
+      bookW = Math.round(bookW * sf); bookH = Math.round(bookH * sf)
+    }
+
+    // 카드 + 책 구성 전체를 캔버스 중앙에 배치
+    // 책 중심은 fLeft - bookW*0.20, 책 좌측 = fLeft - bookW*0.70
+    // 구성 폭 = (fW + bookW*0.70), 중앙 정렬하려면 fLeft = (W - fW + bookW*0.70)/2
+    const fTop  = Math.round((H - fH) / 2)
+    const fLeft = Math.round((W - fW + bookW * 0.70) / 2)
+    const bookCX = fLeft - Math.round(bookW * 0.20)
+    const bookCY = fTop  + Math.round(fH / 2)
+    const padTop = { '16:9': 14, '4:3': 18 }[cardRatio] ?? 16
+
+    return { portrait: false, fW, fH, fLeft, fTop, bookW, bookH, bookCX, bookCY, padTop, padSide: 18, padBottom: 14 }
+  }
+}
+
+function buildBooksHTML(layout) {
+  const { portrait, bookCX, bookCY, bookW, bookH, fTop, fLeft } = layout
+  const cardBodyTop  = portrait ? fTop : 0
+  const cardBodyLeft = portrait ? 0    : fLeft
+
+  return state.books.map(book => {
+    const bW = Math.round(bookW * book.scale)
+    const bH = Math.round(bookH * book.scale)
+    const bX = Math.round(bookCX + book.x - bW / 2)
+    const bY = Math.round(bookCY + book.y - bH / 2)
 
     const src = book.src
     const safeSrc = src ? escapeHTML(src) : ''
@@ -116,97 +177,26 @@ function buildBooksHTML(W, H, layout, folderBodyTop, folderBodyLeft) {
     const imgSt = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
     const imgBack  = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">`
                         : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
-    const imgFront = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">` : ''
 
-    let frontExtra
-    if (layout === 'portrait') {
-      const frontH = Math.max(0, Math.min(bH, folderBodyTop - bY))
-      frontExtra = `width:${bW}px;height:${frontH}px;border-radius:6px 6px 0 0;`
-    } else {
-      const frontW = Math.max(0, Math.min(bW, folderBodyLeft - bX))
-      frontExtra = `width:${frontW}px;height:${bH}px;border-radius:6px 0 0 6px;`
-    }
-
-    const rot = book.rotation || 0
-    const rotStyle = rot !== 0 ? `;transform-origin:center center;transform:rotate(${rot}deg)` : ''
+    const sA = Math.round((state.bookShadow ?? 1) * 28) / 100
+    const sB = Math.round((state.bookShadow ?? 1) * 14) / 100
+    const shadow = `0 16px 48px rgba(0,0,0,${sA}),0 4px 12px rgba(0,0,0,${sB})`
 
     return `
       <div class="book-back" data-id="${book.id}"
-        data-base-cx="${baseCX}" data-base-cy="${baseCY}"
-        data-base-w="${baseW}" data-base-h="${baseH}"
+        data-base-cx="${bookCX}" data-base-cy="${bookCY}"
+        data-base-w="${bookW}" data-base-h="${bookH}"
         data-bw="${bW}" data-bh="${bH}"
-        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:0 16px 48px rgba(0,0,0,0.28),0 4px 12px rgba(0,0,0,0.14)${rotStyle};">${imgBack}</div>
-      <div class="book-front" data-id="${book.id}"
-        style="position:absolute;z-index:5;top:${bY}px;left:${bX}px;overflow:hidden;${frontExtra}${rotStyle}">${imgFront}</div>`
+        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:${shadow};">${imgBack}</div>
+      <div class="book-img-overlay preview-only" data-id="${book.id}"
+        style="position:absolute;z-index:6;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;pointer-events:none;">
+        <button class="book-img-btn book-edit-btn" data-id="${book.id}" style="pointer-events:auto;">✏</button>
+        <button class="book-img-btn book-del-btn" data-id="${book.id}" style="pointer-events:auto;">✕</button>
+      </div>`
   }).join('')
 }
 
-// ── Portrait layout ──
-function applyPortraitLayout(scene, W, H) {
-  const baseW = Math.round(W * 0.30)
-  const baseH = Math.round(baseW * 1.42)
-
-  // 3:4 비율은 folderBodyTop을 낮게 잡아 폴더 내부 공간 확보
-  const is3x4 = state.ratio === '3:4'
-  const folderBodyTop  = Math.round(H * (is3x4 ? 0.47 : 0.52))
-  const folderLayerTop = folderBodyTop - BODY_OFFSET
-  const folderLayerH   = H - folderLayerTop - FOLDER_MARGIN
-  const folderLayerW   = W - FOLDER_MARGIN * 2
-  const tabW           = Math.round(folderLayerW * 0.41)
-  const topPad         = Math.round(baseH * (is3x4 ? 0.45 : 0.48) + (is3x4 ? 12 : 18))
-
-  scene.dataset.layout        = 'portrait'
-  scene.dataset.folderBodyTop = folderBodyTop
-  scene.dataset.folderLayerW  = folderLayerW
-  scene.dataset.W = W
-  scene.dataset.H = H
-
-  scene.innerHTML = `
-    <div class="card-bg-overlay"></div>
-    ${buildBooksHTML(W, H, 'portrait', folderBodyTop, 0)}
-    <div class="folder-layer" style="top:${folderLayerTop}px;left:${FOLDER_MARGIN}px;width:${folderLayerW}px;height:${folderLayerH}px;">
-      <div class="folder-tab" style="width:${tabW}px;">
-        <span class="folder-tab-label">${escapeHTML(state.title) || 'bookcard'}</span>
-      </div>
-      <div class="folder-body">
-        <div class="folder-glass"></div>
-        <div class="folder-content" style="padding:${topPad}px 22px 18px;">
-          ${buildFolderContentHTML()}
-        </div>
-      </div>
-    </div>`
-}
-
-// ── Landscape layout ──
-function applyLandscapeLayout(scene, W, H) {
-  const folderBodyLeft = Math.round(W * 0.38)
-  const folderLayerTop = FOLDER_MARGIN
-  const folderLayerH   = H - FOLDER_MARGIN * 2
-  const folderLayerW   = W - folderBodyLeft - FOLDER_MARGIN
-  const tabW           = Math.round(folderLayerW * 0.68)
-
-  scene.dataset.layout        = 'landscape'
-  scene.dataset.folderBodyLeft = folderBodyLeft
-  scene.dataset.W = W
-  scene.dataset.H = H
-
-  scene.innerHTML = `
-    <div class="card-bg-overlay"></div>
-    ${buildBooksHTML(W, H, 'landscape', 0, folderBodyLeft)}
-    <div class="folder-layer" style="top:${folderLayerTop}px;left:${folderBodyLeft}px;width:${folderLayerW}px;height:${folderLayerH}px;">
-      <div class="folder-tab" style="width:${tabW}px;">
-        <span class="folder-tab-label">${escapeHTML(state.title) || 'bookcard'}</span>
-      </div>
-      <div class="folder-body">
-        <div class="folder-glass"></div>
-        <div class="folder-content" style="padding:28px 18px 18px 20px;">
-          ${buildFolderContentHTML()}
-        </div>
-      </div>
-    </div>`
-}
-
-// ── Drag + Rotate + Zoom (per book) ──
+// ── 책 표지 드래그 + 줌 ──
 export function initCoverDrag(scene) {
   if (!scene) return
   const layout = scene.dataset.layout
@@ -218,10 +208,8 @@ export function initCoverDrag(scene) {
   scene._dragAC = ac
   const signal = ac.signal
 
-  const folderBodyTop  = +scene.dataset.folderBodyTop  || 0
-  const folderBodyLeft = +scene.dataset.folderBodyLeft || 0
-  const W = +scene.dataset.W || scene.offsetWidth
-  const H = +scene.dataset.H || scene.offsetHeight
+  const cardBodyTop  = +scene.dataset.cardBodyTop  || 0
+  const cardBodyLeft = +scene.dataset.cardBodyLeft || 0
 
   function getScale() {
     const rect = scene.getBoundingClientRect()
@@ -234,7 +222,6 @@ export function initCoverDrag(scene) {
 
   state.books.forEach(book => {
     const backEl  = scene.querySelector(`.book-back[data-id="${book.id}"]`)
-    const frontEl = scene.querySelector(`.book-front[data-id="${book.id}"]`)
     if (!backEl) return
 
     const baseCX = +backEl.dataset.baseCx
@@ -243,7 +230,6 @@ export function initCoverDrag(scene) {
     const baseH  = +backEl.dataset.baseH
 
     let dragStart   = null
-    let rotating    = false
     let lastTouches = null
 
     function applyTransform() {
@@ -251,37 +237,30 @@ export function initCoverDrag(scene) {
       const bH = +backEl.dataset.bh
       const bX = Math.round(baseCX + book.x - bW / 2)
       const bY = Math.round(baseCY + book.y - bH / 2)
-      const rot = book.rotation || 0
-      const rotStyle = rot !== 0 ? `rotate(${rot}deg)` : ''
 
-      backEl.style.top       = bY + 'px'
-      backEl.style.left      = bX + 'px'
-      backEl.style.transform = rotStyle
+      backEl.style.top  = bY + 'px'
+      backEl.style.left = bX + 'px'
 
-      if (frontEl) {
-        frontEl.style.top       = bY + 'px'
-        frontEl.style.left      = bX + 'px'
-        frontEl.style.transform = rotStyle
-        if (layout === 'portrait') {
-          frontEl.style.width  = bW + 'px'
-          frontEl.style.height = Math.max(0, Math.min(bH, folderBodyTop - bY)) + 'px'
-        } else {
-          frontEl.style.width  = Math.max(0, Math.min(bW, folderBodyLeft - bX)) + 'px'
-          frontEl.style.height = bH + 'px'
-        }
+      const ovEl = scene.querySelector(`.book-img-overlay[data-id="${book.id}"]`)
+      if (ovEl) {
+        ovEl.style.top    = bY + 'px'
+        ovEl.style.left   = bX + 'px'
+        ovEl.style.width  = bW + 'px'
+        ovEl.style.height = bH + 'px'
       }
     }
 
     function updateImgSize(newBW, newBH) {
       backEl.dataset.bw = newBW; backEl.dataset.bh = newBH
+      backEl.style.width  = newBW + 'px'
+      backEl.style.height = newBH + 'px'
       const bi = backEl.querySelector('img')
       if (bi) { bi.style.width = newBW + 'px'; bi.style.height = newBH + 'px' }
-      const fi = frontEl?.querySelector('img')
-      if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
     }
 
+    let rotating = false
+
     function onDown(e) {
-      // Two-finger touch: handled in onMove
       if (e.touches && e.touches.length >= 2) {
         lastTouches = Array.from(e.touches)
         dragStart = null
@@ -311,7 +290,7 @@ export function initCoverDrag(scene) {
         dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
       }
 
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = rotating ? 'crosshair' : 'grabbing'))
+      backEl.style.cursor = rotating ? 'crosshair' : 'grabbing'
       document.addEventListener('mousemove',  onMove, { signal })
       document.addEventListener('mouseup',    onUp,   { signal })
       document.addEventListener('touchmove',  onMove, { passive: false, signal })
@@ -322,53 +301,24 @@ export function initCoverDrag(scene) {
       e.preventDefault()
       const s = getScale()
 
-      // Two-finger: pinch-scale + rotate
-      if (e.touches && e.touches.length >= 2 && lastTouches && lastTouches.length >= 2) {
+      if (e.touches && e.touches.length >= 2 && lastTouches?.length >= 2) {
         const t0 = e.touches[0], t1 = e.touches[1]
         const l0 = lastTouches[0], l1 = lastTouches[1]
         const newDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY)
         const oldDist = Math.hypot(l1.clientX - l0.clientX, l1.clientY - l0.clientY)
-        const newAng  = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX)
-        const oldAng  = Math.atan2(l1.clientY - l0.clientY, l1.clientX - l0.clientX)
         if (oldDist > 1) {
           book.scale = Math.max(0.3, Math.min(4, book.scale * (newDist / oldDist)))
           updateImgSize(Math.round(baseW * book.scale), Math.round(baseH * book.scale))
         }
-        book.rotation = (book.rotation || 0) + (newAng - oldAng) * 180 / Math.PI
         lastTouches = Array.from(e.touches)
         applyTransform()
         return
       }
 
       if (!dragStart) return
-
-      if (rotating) {
-        const angle = Math.atan2(e.clientY - dragStart.cy, e.clientX - dragStart.cx)
-        book.rotation = dragStart.startRot + (angle - dragStart.startAngle) * 180 / Math.PI
-        applyTransform()
-        return
-      }
-
-      const p  = pointerPos(e)
-      const bW = +backEl.dataset.bw
-      const bH = +backEl.dataset.bh
-      const rawX = dragStart.ox + (p.x - dragStart.px) / s
-      const rawY = dragStart.oy + (p.y - dragStart.py) / s
-
-      if (layout === 'portrait') {
-        // X: 폴더 가로 범위 내로 클램핑 (도서가 폴더 옆으로 빠져나가지 않도록)
-        const minX = FOLDER_MARGIN - baseCX + bW / 2
-        const maxX = (W - FOLDER_MARGIN) - baseCX - bW / 2
-        book.x = minX < maxX ? Math.max(minX, Math.min(maxX, rawX)) : rawX
-        book.y = rawY
-      } else {
-        // Y: 폴더 세로 범위 내로 클램핑
-        const minY = FOLDER_MARGIN - baseCY + bH / 2
-        const maxY = (H - FOLDER_MARGIN) - baseCY - bH / 2
-        book.y = minY < maxY ? Math.max(minY, Math.min(maxY, rawY)) : rawY
-        book.x = rawX
-      }
-
+      const p = pointerPos(e)
+      book.x = dragStart.ox + (p.x - dragStart.px) / s
+      book.y = dragStart.oy + (p.y - dragStart.py) / s
       applyTransform()
     }
 
@@ -377,12 +327,12 @@ export function initCoverDrag(scene) {
         lastTouches = Array.from(e.touches)
         return
       }
-      dragStart = null; rotating = false; lastTouches = null
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grab'))
-      document.removeEventListener('mousemove',  onMove)
-      document.removeEventListener('mouseup',    onUp)
-      document.removeEventListener('touchmove',  onMove)
-      document.removeEventListener('touchend',   onUp)
+      dragStart = null; lastTouches = null
+      backEl.style.cursor = 'grab'
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup',   onUp)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend',  onUp)
     }
 
     function onWheel(e) {
@@ -395,27 +345,87 @@ export function initCoverDrag(scene) {
       applyTransform()
     }
 
-    ;[backEl, frontEl].forEach(el => {
-      if (!el) return
-      el.style.cursor = 'grab'
-      el.addEventListener('contextmenu', e => e.preventDefault(), { signal })
-      el.addEventListener('mousedown',   onDown, { signal })
-      el.addEventListener('touchstart',  onDown, { passive: false, signal })
-      el.addEventListener('wheel',       onWheel, { passive: false, signal })
-    })
+    backEl.style.cursor = 'grab'
+    backEl.style.pointerEvents = 'auto'   // card-group pointer-events:none 오버라이드
+    backEl.addEventListener('contextmenu', e => e.preventDefault(), { signal })
+    backEl.addEventListener('mousedown',   onDown, { signal })
+    backEl.addEventListener('touchstart',  onDown, { passive: false, signal })
+    backEl.addEventListener('wheel',       onWheel, { passive: false, signal })
   })
 }
 
+// ── 카드(글래스 카드) 드래그 + 줌 ──
+export function initCardDrag(scene) {
+  const cardWrapper = scene.querySelector('.card-wrapper')
+  const handle        = scene.querySelector('.card-drag-handle')
+  if (!cardWrapper || !handle) return
+
+  function getPreviewScale() {
+    const rect = scene.getBoundingClientRect()
+    return rect.width / scene.offsetWidth
+  }
+
+  function applyGroupTransform() {
+    const ox = state.cardOffsetX || 0
+    const oy = state.cardOffsetY || 0
+    const s  = state.cardScale   || 1
+    cardWrapper.style.transform = `translate(${ox}px,${oy}px) scale(${s})`
+  }
+
+  let dragStart = null
+
+  function onDown(e) {
+    if (e.touches && e.touches.length >= 2) return
+    e.preventDefault()
+    e.stopPropagation()
+    const t = e.touches?.[0] ?? e
+    dragStart = { px: t.clientX, py: t.clientY, ox: state.cardOffsetX || 0, oy: state.cardOffsetY || 0 }
+    handle.style.cursor = 'grabbing'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup',   onUp)
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend',  onUp)
+  }
+
+  function onMove(e) {
+    e.preventDefault()
+    if (!dragStart) return
+    const t = e.touches?.[0] ?? e
+    const s = getPreviewScale()
+    state.cardOffsetX = dragStart.ox + (t.clientX - dragStart.px) / s
+    state.cardOffsetY = dragStart.oy + (t.clientY - dragStart.py) / s
+    applyGroupTransform()
+  }
+
+  function onUp() {
+    dragStart = null
+    handle.style.cursor = 'grab'
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup',   onUp)
+    document.removeEventListener('touchmove', onMove)
+    document.removeEventListener('touchend',  onUp)
+  }
+
+  handle.addEventListener('mousedown',  onDown)
+  handle.addEventListener('touchstart', onDown, { passive: false })
+  handle.addEventListener('wheel', e => {
+    e.preventDefault()
+    e.stopPropagation()
+    state.cardScale = Math.max(0.3, Math.min(3, (state.cardScale || 1) - e.deltaY * 0.002))
+    applyGroupTransform()
+  }, { passive: false })
+}
+
 // ── 카드 렌더링 ──
-export function renderCard(container) {
-  const [W, H] = SIZES[state.ratio]
-  const scene  = container.querySelector('.card-scene') || document.createElement('div')
+export function renderCard(container, W, H) {
+  const scene = container.querySelector('.card-scene') || document.createElement('div')
 
   scene.className = 'card-scene'
-  scene.setAttribute('data-theme', state.theme)
+  scene.setAttribute('data-theme', 'dark')
   scene.setAttribute('data-font',  state.font)
   scene.style.width  = W + 'px'
   scene.style.height = H + 'px'
+  scene.style.setProperty('--glass-blur', (state.glassBlur ?? 14) + 'px')
 
   if (state.font === 'custom' && state.customFont) {
     scene.style.setProperty('--font-ko', `'${state.customFont}', sans-serif`)
@@ -423,21 +433,36 @@ export function renderCard(container) {
     scene.style.removeProperty('--font-ko')
   }
 
-  if (state.bgPreset === 'image' && state.bgImage) {
-    scene.classList.add('bg-image')
-    scene.style.backgroundImage = `url(${state.bgImage})`
-    scene.style.backgroundColor = ''
-  } else {
-    scene.classList.remove('bg-image')
-    scene.style.backgroundImage = ''
-    scene.style.backgroundColor = state.bgColor
-  }
+  scene.style.backgroundColor = state.bgColor
 
-  if (isPortrait(state.ratio)) {
-    applyPortraitLayout(scene, W, H)
-  } else {
-    applyLandscapeLayout(scene, W, H)
-  }
+  const layout = getCardLayout(W, H)
+  const { portrait, fW, fH, fLeft, fTop, padTop, padSide, padBottom } = layout
+
+  scene.dataset.layout         = portrait ? 'portrait' : 'landscape'
+  scene.dataset.cardBodyTop  = fTop
+  scene.dataset.cardBodyLeft = fLeft
+  scene.dataset.W = W
+  scene.dataset.H = H
+
+  const offsetX   = state.cardOffsetX || 0
+  const offsetY   = state.cardOffsetY || 0
+  const cardScale = state.cardScale   || 1
+
+  // 책 표지와 카드를 분리 — 카드만 card-wrapper 안에, 책 표지는 scene 직속
+  scene.innerHTML = `
+    <div class="card-bg-overlay"></div>
+    ${buildBooksHTML(layout)}
+    <div class="card-wrapper" style="position:absolute;inset:0;z-index:3;pointer-events:none;transform:translate(${offsetX}px,${offsetY}px) scale(${cardScale});transform-origin:50% 50%;">
+      <div class="card-layer" style="top:${fTop}px;left:${fLeft}px;width:${fW}px;height:${fH}px;">
+        <div class="card-body">
+          <div class="card-glass"></div>
+          <div class="card-content" style="padding:${padTop}px ${padSide}px ${padBottom}px ${padSide}px;">
+            ${buildCardContentHTML()}
+          </div>
+        </div>
+        <div class="card-drag-handle" style="position:absolute;inset:0;z-index:10;cursor:grab;pointer-events:auto;"></div>
+      </div>
+    </div>`
 
   if (!container.contains(scene)) container.appendChild(scene)
   return scene
