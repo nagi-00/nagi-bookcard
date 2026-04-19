@@ -1,5 +1,6 @@
 // src/modules/photoEditor.js
 // 이미지 편집기: 이동 · 확대 · 회전 · 반전 (캔버스 경계 = 저장 범위)
+// 캔버스 비율은 책 표지와 동일(1:1.42)이라 프리뷰와 삽입 결과가 일치함.
 export function openPhotoEditor(imgSrc) {
   return new Promise(resolve => {
     const img = new Image()
@@ -9,7 +10,8 @@ export function openPhotoEditor(imgSrc) {
     img.src = imgSrc
 
     function initEditor() {
-      const D = 340
+      const cW = 260, cH = 370   // 1 : 1.42 (책 표지 비율)
+      const BG = '#F8F6F2'        // 투명 영역을 채울 색 (모달 배경과 동일)
 
       let scale = 1, ox = 0, oy = 0, rot = 0
       let fx = false, fy = false
@@ -21,8 +23,8 @@ export function openPhotoEditor(imgSrc) {
         <div class="photo-editor-modal">
           <div class="photo-editor-title">이미지 편집</div>
           <div class="photo-editor-canvas-wrap">
-            <canvas class="photo-editor-canvas" width="${D}" height="${D}"
-              style="width:${D}px;height:${D}px;cursor:grab;display:block;"></canvas>
+            <canvas class="photo-editor-canvas" width="${cW}" height="${cH}"
+              style="width:${cW}px;height:${cH}px;cursor:grab;display:block;"></canvas>
           </div>
           <div class="photo-editor-controls">
             <span class="editor-label">확대</span>
@@ -48,20 +50,22 @@ export function openPhotoEditor(imgSrc) {
         const rotated = rot % 180 !== 0
         const iw = rotated ? img.height : img.width
         const ih = rotated ? img.width  : img.height
-        return Math.max(D / iw, D / ih)
+        return Math.max(cW / iw, cH / ih)
       }
 
-      function draw() {
-        ctx.clearRect(0, 0, D, D)
-        ctx.save()
-        ctx.translate(D/2 + ox, D/2 + oy)
-        ctx.rotate(rot * Math.PI / 180)
+      function paint(c, w, h, s) {
+        c.fillStyle = BG
+        c.fillRect(0, 0, w, h)
+        c.save()
+        c.translate(w/2 + ox*s, h/2 + oy*s)
+        c.rotate(rot * Math.PI / 180)
         const bf = baseFit()
-        ctx.scale(scale * bf * (fx ? -1 : 1), scale * bf * (fy ? -1 : 1))
-        ctx.drawImage(img, -img.width/2, -img.height/2)
-        ctx.restore()
+        c.scale(scale * bf * s * (fx ? -1 : 1), scale * bf * s * (fy ? -1 : 1))
+        c.drawImage(img, -img.width/2, -img.height/2)
+        c.restore()
       }
 
+      function draw() { paint(ctx, cW, cH, 1) }
       draw()
 
       const ac = new AbortController()
@@ -115,19 +119,13 @@ export function openPhotoEditor(imgSrc) {
       }
 
       function apply() {
-        const OUT = 1200
-        const sc  = OUT / D
+        // 긴 변이 1200px이 되도록 스케일
+        const OUT_LONG = 1200
+        const sc = OUT_LONG / Math.max(cW, cH)
         const out  = document.createElement('canvas')
-        out.width  = OUT; out.height = OUT
-        const octx = out.getContext('2d')
-        octx.save()
-        octx.translate(OUT/2 + ox*sc, OUT/2 + oy*sc)
-        octx.rotate(rot * Math.PI / 180)
-        const bf = baseFit()
-        octx.scale(scale * bf * sc * (fx ? -1 : 1), scale * bf * sc * (fy ? -1 : 1))
-        octx.drawImage(img, -img.width/2, -img.height/2)
-        octx.restore()
-
+        out.width  = Math.round(cW * sc)
+        out.height = Math.round(cH * sc)
+        paint(out.getContext('2d'), out.width, out.height, sc)
         cleanup()
         resolve(out.toDataURL('image/jpeg', 0.92))
       }
