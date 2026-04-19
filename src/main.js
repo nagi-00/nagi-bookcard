@@ -1,7 +1,7 @@
 // src/main.js
 import './styles/main.css'
 import { state, setState, subscribe } from './state.js'
-import { renderCard, initCoverDrag, initCardDrag, resetCoverOffset, resetCardOffset } from './modules/card.js'
+import { renderCard, initCoverDrag, initCardDrag, resetCardOffset } from './modules/card.js'
 import { openPhotoEditor } from './modules/photoEditor.js'
 import { openCropUI } from './modules/cropExport.js'
 import { searchBooks } from './modules/search.js'
@@ -456,7 +456,6 @@ document.querySelectorAll('#card-ratio-buttons .ratio-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     document.querySelectorAll('#card-ratio-buttons .ratio-btn').forEach(b => b.classList.remove('active'))
     this.classList.add('active')
-    resetCoverOffset()
     resetCardOffset()
     setState({ cardRatio: this.dataset.ratio })
   })
@@ -535,14 +534,6 @@ document.getElementById('font-select').addEventListener('change', async e => {
 
 document.getElementById('local-font-search').addEventListener('input', e => {
   renderLocalFonts(_localFonts)
-})
-// Revert to previous preset if custom name left empty on blur
-document.getElementById('custom-font-input').addEventListener('blur', e => {
-  if (e.target.value.trim()) return
-  const sel = document.getElementById('font-select')
-  sel.value = 'modern'
-  e.target.style.display = 'none'
-  setState({ font: 'modern', customFont: '' })
 })
 
 document.getElementById('local-font-chip-clear').addEventListener('click', () => {

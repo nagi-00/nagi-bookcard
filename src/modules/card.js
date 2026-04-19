@@ -178,16 +178,6 @@ function buildBooksHTML(layout) {
     const imgSt = `width:${bW}px;height:${bH}px;object-fit:cover;display:block;`
     const imgBack  = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">`
                         : `<div style="width:100%;height:100%;background:var(--color-sub);opacity:0.35;border-radius:4px;"></div>`
-    const imgFront = src ? `<img src="${safeSrc}"${crossOrigin} style="${imgSt}" alt="">` : ''
-
-    let frontExtra
-    if (portrait) {
-      const frontH = Math.max(0, Math.min(bH, folderBodyTop - bY))
-      frontExtra = `width:${bW}px;height:${frontH}px;border-radius:6px 6px 0 0;`
-    } else {
-      const frontW = Math.max(0, Math.min(bW, folderBodyLeft - bX))
-      frontExtra = `width:${frontW}px;height:${bH}px;border-radius:6px 0 0 6px;`
-    }
 
     const sA = Math.round((state.bookShadow ?? 1) * 28) / 100
     const sB = Math.round((state.bookShadow ?? 1) * 14) / 100
@@ -199,8 +189,6 @@ function buildBooksHTML(layout) {
         data-base-w="${bookW}" data-base-h="${bookH}"
         data-bw="${bW}" data-bh="${bH}"
         style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:${shadow};">${imgBack}</div>
-      <div class="book-front" data-id="${book.id}"
-        style="position:absolute;z-index:5;top:${bY}px;left:${bX}px;overflow:hidden;${frontExtra}">${imgFront}</div>
       <div class="book-img-overlay preview-only" data-id="${book.id}"
         style="position:absolute;z-index:6;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;pointer-events:none;">
         <button class="book-img-btn book-edit-btn" data-id="${book.id}" style="pointer-events:auto;">✏</button>
@@ -235,7 +223,6 @@ export function initCoverDrag(scene) {
 
   state.books.forEach(book => {
     const backEl  = scene.querySelector(`.book-back[data-id="${book.id}"]`)
-    const frontEl = scene.querySelector(`.book-front[data-id="${book.id}"]`)
     if (!backEl) return
 
     const baseCX = +backEl.dataset.baseCx
@@ -255,19 +242,6 @@ export function initCoverDrag(scene) {
       backEl.style.top  = bY + 'px'
       backEl.style.left = bX + 'px'
 
-      if (frontEl) {
-        frontEl.style.top  = bY + 'px'
-        frontEl.style.left = bX + 'px'
-        if (layout === 'portrait') {
-          frontEl.style.width  = bW + 'px'
-          frontEl.style.height = Math.max(0, Math.min(bH, folderBodyTop - bY)) + 'px'
-        } else {
-          frontEl.style.width  = Math.max(0, Math.min(bW, folderBodyLeft - bX)) + 'px'
-          frontEl.style.height = bH + 'px'
-        }
-      }
-
-      // 오버레이 버튼도 이미지와 함께 이동
       const ovEl = scene.querySelector(`.book-img-overlay[data-id="${book.id}"]`)
       if (ovEl) {
         ovEl.style.top    = bY + 'px'
@@ -283,8 +257,6 @@ export function initCoverDrag(scene) {
       backEl.style.height = newBH + 'px'
       const bi = backEl.querySelector('img')
       if (bi) { bi.style.width = newBW + 'px'; bi.style.height = newBH + 'px' }
-      const fi = frontEl?.querySelector('img')
-      if (fi) { fi.style.width = newBW + 'px'; fi.style.height = newBH + 'px' }
     }
 
     let rotating = false
@@ -319,7 +291,7 @@ export function initCoverDrag(scene) {
         dragStart = { px: p.x, py: p.y, ox: book.x, oy: book.y }
       }
 
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = rotating ? 'crosshair' : 'grabbing'))
+      backEl.style.cursor = rotating ? 'crosshair' : 'grabbing'
       document.addEventListener('mousemove',  onMove, { signal })
       document.addEventListener('mouseup',    onUp,   { signal })
       document.addEventListener('touchmove',  onMove, { passive: false, signal })
@@ -357,7 +329,7 @@ export function initCoverDrag(scene) {
         return
       }
       dragStart = null; lastTouches = null
-      ;[backEl, frontEl].forEach(el => el && (el.style.cursor = 'grab'))
+      backEl.style.cursor = 'grab'
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup',   onUp)
       document.removeEventListener('touchmove', onMove)
@@ -374,15 +346,12 @@ export function initCoverDrag(scene) {
       applyTransform()
     }
 
-    ;[backEl, frontEl].forEach(el => {
-      if (!el) return
-      el.style.cursor = 'grab'
-      el.style.pointerEvents = 'auto'   // card-group pointer-events:none 오버라이드
-      el.addEventListener('contextmenu', e => e.preventDefault(), { signal })
-      el.addEventListener('mousedown',   onDown, { signal })
-      el.addEventListener('touchstart',  onDown, { passive: false, signal })
-      el.addEventListener('wheel',       onWheel, { passive: false, signal })
-    })
+    backEl.style.cursor = 'grab'
+    backEl.style.pointerEvents = 'auto'   // card-group pointer-events:none 오버라이드
+    backEl.addEventListener('contextmenu', e => e.preventDefault(), { signal })
+    backEl.addEventListener('mousedown',   onDown, { signal })
+    backEl.addEventListener('touchstart',  onDown, { passive: false, signal })
+    backEl.addEventListener('wheel',       onWheel, { passive: false, signal })
   })
 }
 
