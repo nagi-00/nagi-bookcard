@@ -351,7 +351,7 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 /* ── 사진 편집기 ── */
 .photo-editor-overlay {
   position: fixed; inset: 0; z-index: 2000;
-  background: rgba(0,0,0,0.72);
+  background: rgba(44,40,37,0.55);
   backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
@@ -361,35 +361,28 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   border-radius: 20px;
   padding: 24px;
   display: flex; flex-direction: column; gap: 14px;
-  width: 100%; max-width: min(480px, 92vw);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+  width: 100%; max-width: min(540px, 94vw);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.28);
 }
 .photo-editor-title {
   font-size: 14px; font-weight: 700; color: #2C2825;
 }
 .photo-editor-canvas-wrap {
-  display: flex; justify-content: center;
+  display: flex; justify-content: center; align-items: center;
   border-radius: 12px; overflow: hidden;
   background: #F8F6F2;
+  min-height: 200px;
 }
 .photo-editor-canvas {
   display: block;
-  width: 260px; height: 370px;
   max-width: 100%;
-  aspect-ratio: 260 / 370;
   touch-action: none;
-}
-.zoom-readout {
-  font-size: 11px; color: #8C8680;
-  min-width: 42px; text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--font-en, 'Inter', sans-serif);
+  cursor: default;
 }
 .photo-editor-controls {
   display: flex; align-items: center; gap: 10px;
 }
 .editor-label { font-size: 11px; color: #8C8680; white-space: nowrap; }
-.zoom-slider { flex: 1; accent-color: #8FAF8E; }
 .photo-editor-actions { display: flex; gap: 10px; }
 .editor-cancel-btn {
   flex: 1; padding: 10px; border-radius: 12px;
@@ -416,6 +409,10 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   font-family: inherit; transition: border-color 0.15s;
 }
 .edit-btn:hover { border-color: #8FAF8E; }
+.edit-btn.ratio-btn { font-size: 12px; font-weight: 600; min-width: 48px; }
+.edit-btn.ratio-btn.active {
+  background: #8FAF8E; color: #fff; border-color: #8FAF8E;
+}
 #pe-reset { font-size: 11px; font-weight: 700; letter-spacing: -0.02em; }
 
 /* ── 미니 토스트 ── */
