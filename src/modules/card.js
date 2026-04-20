@@ -189,7 +189,7 @@ function buildBooksHTML(layout) {
         data-bw="${bW}" data-bh="${bH}"
         style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;overflow:hidden;border-radius:6px;box-shadow:${shadow};">${imgBack}</div>
       <div class="book-img-overlay preview-only" data-id="${book.id}"
-        style="position:absolute;z-index:6;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;pointer-events:none;">
+        style="position:absolute;z-index:2;top:${bY}px;left:${bX}px;width:${bW}px;height:${bH}px;pointer-events:none;">
         <button class="book-img-btn book-edit-btn" data-id="${book.id}" style="pointer-events:auto;">✏</button>
         <button class="book-img-btn book-del-btn" data-id="${book.id}" style="pointer-events:auto;">✕</button>
       </div>`

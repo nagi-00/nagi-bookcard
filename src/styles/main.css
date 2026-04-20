@@ -351,7 +351,7 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 /* ── 사진 편집기 ── */
 .photo-editor-overlay {
   position: fixed; inset: 0; z-index: 2000;
-  background: rgba(0,0,0,0.72);
+  background: rgba(44,40,37,0.55);
   backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
@@ -361,32 +361,28 @@ textarea.text-input { resize: vertical; min-height: 72px; }
   border-radius: 20px;
   padding: 24px;
   display: flex; flex-direction: column; gap: 14px;
-  width: 100%; max-width: 420px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+  width: 100%; max-width: min(540px, 94vw);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.28);
 }
 .photo-editor-title {
   font-size: 14px; font-weight: 700; color: #2C2825;
 }
 .photo-editor-canvas-wrap {
-  display: flex; justify-content: center;
+  display: flex; justify-content: center; align-items: center;
   border-radius: 12px; overflow: hidden;
   background: #F8F6F2;
+  min-height: 200px;
 }
-.photo-editor-canvas { display: block; max-width: 100%; }
+.photo-editor-canvas {
+  display: block;
+  max-width: 100%;
+  touch-action: none;
+  cursor: default;
+}
 .photo-editor-controls {
   display: flex; align-items: center; gap: 10px;
 }
 .editor-label { font-size: 11px; color: #8C8680; white-space: nowrap; }
-.zoom-slider { flex: 1; accent-color: #8FAF8E; }
-.rotate-btns { display: flex; gap: 6px; }
-.rotate-btn {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 1.5px solid #D6D0C8; background: #F0EBE3;
-  font-size: 16px; cursor: pointer; color: #2C2825;
-  display: flex; align-items: center; justify-content: center;
-  font-family: inherit;
-}
-.rotate-btn:hover { border-color: #8FAF8E; }
 .photo-editor-actions { display: flex; gap: 10px; }
 .editor-cancel-btn {
   flex: 1; padding: 10px; border-radius: 12px;
@@ -404,15 +400,39 @@ textarea.text-input { resize: vertical; min-height: 72px; }
 .editor-confirm-btn:hover { opacity: 0.85; }
 
 /* ── 사진 편집기: 추가 컨트롤 ── */
-.editor-btn-row { display: flex; gap: 6px; }
+.editor-btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .edit-btn {
-  width: 32px; height: 32px; border-radius: 8px;
+  min-width: 32px; height: 32px; padding: 0 6px; border-radius: 8px;
   border: 1.5px solid #D6D0C8; background: #F0EBE3;
   font-size: 15px; cursor: pointer; color: #2C2825;
   display: flex; align-items: center; justify-content: center;
   font-family: inherit; transition: border-color 0.15s;
 }
 .edit-btn:hover { border-color: #8FAF8E; }
+.edit-btn.ratio-btn { font-size: 12px; font-weight: 600; min-width: 48px; }
+.edit-btn.ratio-btn.active {
+  background: #8FAF8E; color: #fff; border-color: #8FAF8E;
+}
+#pe-reset { font-size: 11px; font-weight: 700; letter-spacing: -0.02em; }
+
+/* ── 미니 토스트 ── */
+.photo-editor-toast {
+  position: fixed;
+  left: 50%; bottom: 40px;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(26,24,22,0.92);
+  color: #F8F6F2;
+  font-size: 12px; font-weight: 600;
+  padding: 10px 16px; border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 3000;
+}
+.photo-editor-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 /* ── 내보내기 크롭 오버레이 ── */
 .crop-export-overlay {
